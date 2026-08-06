@@ -7,7 +7,7 @@ loadEnvConfig(repoRoot);
 process.env.EVEE_REPO_ROOT ??= repoRoot;
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@evee/auth", "@evee/platform"],
+  transpilePackages: ["@evee/agents", "@evee/auth", "@evee/platform"],
   outputFileTracingRoot: repoRoot,
   experimental: {
     optimizePackageImports: ["@phosphor-icons/react"],
