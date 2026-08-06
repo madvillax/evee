@@ -3,9 +3,9 @@
   "version": "0.2.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
-    "build": "next build",
-    "start": "next start -p 3001",
+    "dev": "bun run --bun next dev -p 3001",
+    "build": "bun run --bun next build",
+    "start": "bun run --bun next start -p 3001",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -24,7 +24,6 @@
     "zod": "latest"
   },
   "devDependencies": {
-    "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "typescript": "^5.9.3"
