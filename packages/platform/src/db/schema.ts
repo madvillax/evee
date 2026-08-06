@@ -231,6 +231,16 @@ export const monitorRuns = sqliteTable("monitor_runs", {
   finishedAt: integer("finished_at"),
 });
 
+// A scheduled workflow claims a user and time bucket before performing work.
+// This makes retries safe if the scheduler is restarted or more than one worker
+// is temporarily alive during a deployment.
+export const scheduledRunClaims = sqliteTable("scheduled_run_claims", {
+  kind: text("kind").notNull(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  bucket: integer("bucket").notNull(),
+  claimedAt: integer("claimed_at").notNull(),
+}, (table) => [primaryKey({ columns: [table.kind, table.userId, table.bucket] })]);
+
 export const userDigests = sqliteTable("user_digests", {
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   opportunityId: text("opportunity_id").notNull().references(() => opportunities.id, { onDelete: "cascade" }),
