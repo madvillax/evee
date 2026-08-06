@@ -1,0 +1,25 @@
+{
+  "name": "@evee/agents",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^4.0.36",
+    "@evee/platform": "workspace:*",
+    "@mastra/core": "^1.57.0",
+    "@mastra/libsql": "^1.19.0",
+    "@mastra/memory": "^1.26.0",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
+  }
+}
