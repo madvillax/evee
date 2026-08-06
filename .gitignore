@@ -2,7 +2,6 @@ node_modules/
 .env
 .env.local
 .env.*
-.trigger/
 .eve/
 .turbo/
 .output/
