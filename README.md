@@ -10,7 +10,7 @@ Evee never posts a public reply on a user's behalf.
 - Telegram companion for instant alerts, reply drafts, quick feedback, manual scans, and daily digests
 - Secure, expiring, one-time codes for linking a Telegram identity to an authenticated web workspace
 - Light and dark themes with a responsive application shell
-- Shared Turso data model so web, Telegram, Eve, and Trigger.dev operate on the same workspace
+- Shared Turso data model so web, Telegram, Mastra, and Trigger.dev operate on the same workspace
 
 ## Stack
 
@@ -20,8 +20,8 @@ Evee never posts a public reply on a user's behalf.
 | Bun + TypeScript | Monorepo runtime, scripts, and type-safe application code |
 | Better Auth | Email/password authentication and sessions |
 | Turso + Drizzle ORM | Multi-tenant application data and migrations |
-| Vercel Eve | Durable GTM copilot sessions, instructions, and tools |
-| Vercel AI SDK + Google provider | Direct Gemini 2.5 Flash access for Eve |
+| Mastra | GTM copilot runtime, durable conversation memory, and workspace-scoped tools |
+| Google provider | Direct Gemini 2.5 Flash access for Mastra |
 | Google Gen AI SDK + Zod | Structured opportunity analysis in the monitoring pipeline |
 | Trigger.dev | Scheduled scans, retries, fan-out work, and daily digests |
 | grammY | Telegram bot transport and commands |
@@ -36,7 +36,7 @@ packages/
   auth/                Better Auth configuration
   platform/            database, collectors, analysis, and services
   jobs/                Trigger.dev tasks
-agent/                  Eve agent, instructions, channel auth, and tools
+apps/web/src/mastra/     Mastra agent, instructions, memory, and workspace-scoped tools
 drizzle/                generated SQL migrations
 ```
 
@@ -45,7 +45,7 @@ drizzle/                generated SQL migrations
 Prerequisites:
 
 - Bun 1.3+
-- Node.js 24 (required by the Eve CLI)
+- Node.js 24
 - A Telegram bot token from BotFather
 - A direct Gemini API key from Google AI Studio
 - A Turso database, or `file:local.db` for local-only development
@@ -94,7 +94,7 @@ Generate the two application secrets with `openssl rand -base64 32`. Use the sam
 Run each long-lived process in its own terminal:
 
 ```bash
-# Terminal 1: dashboard + embedded Eve runtime (the script pins Node 24 through fnm)
+# Terminal 1: dashboard and embedded Mastra copilot route
 bun run dev:web
 
 # Terminal 2: Telegram bot
@@ -112,20 +112,15 @@ Open [http://localhost:3001](http://localhost:3001), create an account, then con
 
 The code expires after ten minutes, is stored only as a hash, can be used once, and is invalidated when a replacement code is created.
 
-For a production-like local run, build both services first, then run the Eve service on port `4274` beside `next start`:
+For a production-like local run, build the app and start the web process. The Mastra copilot runs inside the authenticated Next.js route; no sidecar process is needed:
 
 ```bash
 fnm use 24
 bun run build
 
 # Terminal 1
-NODE_ENV=production bun run eve:start -- --port 4274
-
-# Terminal 2
 bun --cwd apps/web start
 ```
-
-On Vercel, `withEve` packages the web app and Eve runtime into the same project, so the separate local sidecar command is not needed.
 
 ## Telegram commands
 
@@ -143,7 +138,7 @@ The bot registers these commands with Telegram so they appear in the command men
 
 ## AI and automation boundaries
 
-Eve is the intelligent GTM copilot. It understands the business, turns natural-language intent into monitors, plans research, explains opportunity relevance, drafts replies, answers GTM questions, and uses feedback to improve recommendations.
+Mastra runs the intelligent GTM copilot. Its server route resolves the Better Auth session and workspace before every request, derives the conversation thread server-side, and passes only the verified runtime user ID to tools. It understands the business, turns natural-language intent into monitors, plans research, explains opportunity relevance, drafts replies, answers GTM questions, and uses feedback to improve recommendations.
 
 Authentication, workspace authorization, billing state, CRUD operations, schedules, retries, and notification delivery remain deterministic application code. Trigger.dev runs monitoring every twenty minutes and checks hourly for timezone-aware daily digests.
 
@@ -158,15 +153,12 @@ bun run build
 bun run db:generate
 bun run db:migrate
 bun run trigger:deploy
-bun run eve:dev
-bun run eve:build
-bun run eve:start
 ```
 
 ## Production checklist
 
 - Use strong, different production values for Better Auth and Telegram linking secrets.
-- Set the same Turso credentials in the web, bot, Eve, and Trigger.dev environments.
+- Set the same Turso credentials in the web, bot, Mastra, and Trigger.dev environments.
 - Set `BETTER_AUTH_URL` to the canonical public HTTPS origin, with no path (for example, `https://app.example.com`). This is required for login.
 - If users can open the app from another allowed hostname (for example a custom domain plus a Vercel deployment or preview URL), add each exact HTTPS origin to `BETTER_AUTH_TRUSTED_ORIGINS` as a comma-separated list, then redeploy. Do not use a wildcard or disable origin checks.
 - Run the Telegram bot in webhook mode and validate Telegram's secret-token header.
