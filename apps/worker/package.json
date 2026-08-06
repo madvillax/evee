@@ -1,18 +1,19 @@
 {
-  "name": "@evee/jobs",
+  "name": "@evee/worker",
   "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "MASTRA_WORKER=true bun --watch src/index.ts",
+    "start": "MASTRA_WORKER=true bun src/index.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit"
   },
   "dependencies": {
-    "@evee/platform": "workspace:*",
-    "@trigger.dev/sdk": "latest"
+    "@evee/agents": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "latest",
+    "@types/bun": "latest",
     "typescript": "^5.9.3"
   }
 }

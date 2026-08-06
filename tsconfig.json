@@ -13,9 +13,10 @@
     "jsx": "preserve",
     "noEmit": true,
     "paths": {
+      "@evee/agents/*": ["./packages/agents/src/*"],
       "@evee/platform/*": ["./packages/platform/src/*"],
       "@evee/auth": ["./packages/auth/src/index.ts"]
     }
   },
-  "include": ["agent/**/*.ts", "drizzle.config.ts", "trigger.config.ts"]
+  "include": ["drizzle.config.ts"]
 }

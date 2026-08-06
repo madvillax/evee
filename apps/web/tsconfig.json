@@ -4,6 +4,7 @@
     "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./src/*"],
+      "@evee/agents/*": ["../../packages/agents/src/*"],
       "@evee/platform/*": ["../../packages/platform/src/*"],
       "@evee/auth": ["../../packages/auth/src/index.ts"]
     },

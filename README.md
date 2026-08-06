@@ -10,7 +10,7 @@ Evee never posts a public reply on a user's behalf.
 - Telegram companion for instant alerts, reply drafts, quick feedback, manual scans, and daily digests
 - Secure, expiring, one-time codes for linking a Telegram identity to an authenticated web workspace
 - Light and dark themes with a responsive application shell
-- Shared Turso data model so web, Telegram, Mastra, and Trigger.dev operate on the same workspace
+- Shared Turso data model so web, Telegram, and the Mastra worker operate on the same workspace
 
 ## Stack
 
@@ -20,10 +20,9 @@ Evee never posts a public reply on a user's behalf.
 | Bun + TypeScript | Monorepo runtime, scripts, and type-safe application code |
 | Better Auth | Email/password authentication and sessions |
 | Turso + Drizzle ORM | Multi-tenant application data and migrations |
-| Mastra | GTM copilot runtime, durable conversation memory, and workspace-scoped tools |
+| Mastra | Multi-agent GTM copilot, durable conversation memory, workspace-scoped tools, and scheduled workflows |
 | Google provider | Direct Gemini 2.5 Flash access for Mastra |
 | Google Gen AI SDK + Zod | Structured opportunity analysis in the monitoring pipeline |
-| Trigger.dev | Scheduled scans, retries, fan-out work, and daily digests |
 | grammY | Telegram bot transport and commands |
 
 ## Monorepo layout
@@ -32,11 +31,11 @@ Evee never posts a public reply on a user's behalf.
 apps/
   web/                 Next.js dashboard and API routes
   bot/                 Telegram bot process
+  worker/              standalone Mastra scheduler and workflow process
 packages/
+  agents/              Mastra coordinator, specialist agents, tools, and workflows
   auth/                Better Auth configuration
   platform/            database, collectors, analysis, and services
-  jobs/                Trigger.dev tasks
-apps/web/src/mastra/     Mastra agent, instructions, memory, and workspace-scoped tools
 drizzle/                generated SQL migrations
 ```
 
@@ -49,7 +48,6 @@ Prerequisites:
 - A Telegram bot token from BotFather
 - A direct Gemini API key from Google AI Studio
 - A Turso database, or `file:local.db` for local-only development
-- A Trigger.dev project for scheduled jobs
 
 Install dependencies and create your local environment file:
 
@@ -81,9 +79,6 @@ TURSO_AUTH_TOKEN=
 GITHUB_TOKEN=
 REDDIT_USER_AGENT=evee/0.2 opportunity monitor
 
-TRIGGER_SECRET_KEY=
-TRIGGER_PROJECT_REF=
-
 DEFAULT_RSS_FEEDS=
 ```
 
@@ -100,8 +95,8 @@ bun run dev:web
 # Terminal 2: Telegram bot
 bun run bot
 
-# Terminal 3: scheduled jobs
-bun run trigger:dev
+# Terminal 3: Mastra schedules and deterministic background workflows
+bun run dev:worker
 ```
 
 Open [http://localhost:3001](http://localhost:3001), create an account, then connect Telegram from **Dashboard > Integrations**. In Telegram, send the generated command:
@@ -112,14 +107,17 @@ Open [http://localhost:3001](http://localhost:3001), create an account, then con
 
 The code expires after ten minutes, is stored only as a hash, can be used once, and is invalidated when a replacement code is created.
 
-For a production-like local run, build the app and start the web process. The Mastra copilot runs inside the authenticated Next.js route; no sidecar process is needed:
+For a production-like local run, build the app and start the web and worker processes. The web process serves the authenticated copilot; the worker owns Mastra storage initialization and cron schedules:
 
 ```bash
 fnm use 24
 bun run build
 
-# Terminal 1
+# Terminal 1: web
 bun --cwd apps/web start
+
+# Terminal 2: Mastra worker
+bun run worker
 ```
 
 ## Telegram commands
@@ -138,9 +136,11 @@ The bot registers these commands with Telegram so they appear in the command men
 
 ## AI and automation boundaries
 
-Mastra runs the intelligent GTM copilot. Its server route resolves the Better Auth session and workspace before every request, derives the conversation thread server-side, and passes only the verified runtime user ID to tools. It understands the business, turns natural-language intent into monitors, plans research, explains opportunity relevance, drafts replies, answers GTM questions, and uses feedback to improve recommendations.
+Mastra runs the GTM copilot as a coordinator with four scoped specialists: intelligence, monitoring, notification settings, and draft/feedback. Its server route resolves the Better Auth session and workspace before every request, derives the conversation thread server-side, and passes only the verified runtime user ID to tools. Specialists receive that verified context, not a model-selected workspace ID.
 
-Authentication, workspace authorization, billing state, CRUD operations, schedules, retries, and notification delivery remain deterministic application code. Trigger.dev runs monitoring every twenty minutes and checks hourly for timezone-aware daily digests.
+Authentication, workspace authorization, billing state, CRUD operations, collection, analysis, and notification delivery remain deterministic application code. The standalone Mastra worker schedules monitoring every twenty minutes and checks hourly for timezone-aware daily digests. It retains bounded concurrency, exponential retries, and database-backed per-user run claims to avoid duplicate work during a scheduler replay or deployment overlap.
+
+The worker is a required production service. Deploy it before the web app on a new environment: it explicitly initializes Mastra's storage tables, while the web runtime has automatic schema initialization disabled.
 
 Collectors are implemented for Reddit, Hacker News, GitHub, and RSS. Telegram is implemented as the companion channel. Slack, email, and X are represented as workspace integrations and require their provider credentials and authorization flows before delivery or collection can be enabled. X capabilities also depend on the API access granted to the account.
 
@@ -152,13 +152,13 @@ bun run test
 bun run build
 bun run db:generate
 bun run db:migrate
-bun run trigger:deploy
+bun run worker
 ```
 
 ## Production checklist
 
 - Use strong, different production values for Better Auth and Telegram linking secrets.
-- Set the same Turso credentials in the web, bot, Mastra, and Trigger.dev environments.
+- Set the same Turso credentials in the web, bot, and Mastra worker environments.
 - Set `BETTER_AUTH_URL` to the canonical public HTTPS origin, with no path (for example, `https://app.example.com`). This is required for login.
 - If users can open the app from another allowed hostname (for example a custom domain plus a Vercel deployment or preview URL), add each exact HTTPS origin to `BETTER_AUTH_TRUSTED_ORIGINS` as a comma-separated list, then redeploy. Do not use a wildcard or disable origin checks.
 - Run the Telegram bot in webhook mode and validate Telegram's secret-token header.

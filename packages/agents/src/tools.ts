@@ -11,18 +11,7 @@ import { feedbackValueSchema, sourceTypeSchema } from "@evee/platform/domain/typ
 import { recordOpportunityFeedback, rewriteOpportunity } from "@evee/platform/services/feedback";
 import { monitorUser } from "@evee/platform/services/monitor";
 import { z } from "zod";
-
-const requestContextSchema = z.object({
-  runtimeUserId: z.string().uuid(),
-});
-
-type EveeRequestContext = z.infer<typeof requestContextSchema>;
-
-function runtimeUserId(context: { requestContext: { get: (key: "runtimeUserId") => string | undefined } }) {
-  const userId = context.requestContext.get("runtimeUserId");
-  if (!userId) throw new Error("A signed-in workspace is required.");
-  return userId;
-}
+import { eveeRequestContextSchema, getRuntimeUserId } from "./context";
 
 export const createMonitorTool = createTool({
   id: "create-monitor",
@@ -34,25 +23,22 @@ export const createMonitorTool = createTool({
     communities: z.array(z.string().min(1)).max(20).default([]),
     exclusions: z.array(z.string().min(1)).max(20).default([]),
   }),
-  requestContextSchema,
-  execute: async (input, context) => {
-    const userId = runtimeUserId(context);
-    return createMonitor({
-      userId,
-      type: input.type,
-      name: input.name,
-      config: { query: input.query, communities: input.communities, exclusions: input.exclusions },
-    });
-  },
+  requestContextSchema: eveeRequestContextSchema,
+  execute: async (input, context) => createMonitor({
+    userId: getRuntimeUserId(context),
+    type: input.type,
+    name: input.name,
+    config: { query: input.query, communities: input.communities, exclusions: input.exclusions },
+  }),
 });
 
 export const findOpportunitiesTool = createTool({
   id: "find-opportunities",
   description: "Scan configured public sources for a user, analyze new conversations, and return the strongest unsent opportunities.",
   inputSchema: z.object({}),
-  requestContextSchema,
+  requestContextSchema: eveeRequestContextSchema,
   execute: async (_input, context) => {
-    const userId = runtimeUserId(context);
+    const userId = getRuntimeUserId(context);
     const result = await monitorUser(userId);
     const user = await getUser(userId);
     const opportunities = await getUnalertedOpportunities(userId, user?.minScore ?? 65, 5);
@@ -64,9 +50,9 @@ export const getLatestDigestTool = createTool({
   id: "get-latest-digest",
   description: "Read the workspace's latest qualified opportunities as a concise digest. This does not mark the Telegram digest as sent.",
   inputSchema: z.object({}),
-  requestContextSchema,
+  requestContextSchema: eveeRequestContextSchema,
   execute: async (_input, context) => {
-    const userId = runtimeUserId(context);
+    const userId = getRuntimeUserId(context);
     const user = await getUser(userId);
     const minimumScore = user?.minScore ?? 65;
     const opportunities = (await listOpportunitiesForUser(userId, 30))
@@ -93,17 +79,17 @@ export const getProductProfileTool = createTool({
   id: "get-product-profile",
   description: "Read a user's saved product, audience, pain points, competitors, keywords, exclusions, and preferred reply style.",
   inputSchema: z.object({}),
-  requestContextSchema,
-  execute: async (_input, context) => getProfile(runtimeUserId(context)) ?? { error: "No saved product profile." },
+  requestContextSchema: eveeRequestContextSchema,
+  execute: async (_input, context) => getProfile(getRuntimeUserId(context)) ?? { error: "No saved product profile." },
 });
 
 export const manageAlertsTool = createTool({
   id: "manage-alerts",
   description: "Pause or resume workspace monitoring alerts after an explicit user request.",
   inputSchema: z.object({ enabled: z.boolean().describe("True to resume alerts; false to pause alerts.") }),
-  requestContextSchema,
+  requestContextSchema: eveeRequestContextSchema,
   execute: async ({ enabled }, context) => {
-    const userId = runtimeUserId(context);
+    const userId = getRuntimeUserId(context);
     await updateUserPreferences(userId, { alertsEnabled: enabled });
     const user = await getUser(userId);
     return { alertsEnabled: user?.alertsEnabled ?? enabled };
@@ -118,9 +104,9 @@ export const manageSettingsTool = createTool({
     timezone: z.string().min(1).optional(),
     minScore: z.number().int().min(40).max(100).optional(),
   }),
-  requestContextSchema,
+  requestContextSchema: eveeRequestContextSchema,
   execute: async (input, context) => {
-    const userId = runtimeUserId(context);
+    const userId = getRuntimeUserId(context);
     if (input.timezone) {
       try {
         new Intl.DateTimeFormat("en", { timeZone: input.timezone }).format();
@@ -154,9 +140,9 @@ export const recordFeedbackTool = createTool({
     value: feedbackValueSchema.exclude(["rewrite"]),
     note: z.string().max(1_000).optional(),
   }),
-  requestContextSchema,
+  requestContextSchema: eveeRequestContextSchema,
   execute: async ({ opportunityId, value, note }, context) => {
-    await recordOpportunityFeedback(runtimeUserId(context), opportunityId, value, note);
+    await recordOpportunityFeedback(getRuntimeUserId(context), opportunityId, value, note);
     return { saved: true };
   },
 });
@@ -168,20 +154,9 @@ export const rewriteOpportunityTool = createTool({
     opportunityId: z.string().uuid(),
     instruction: z.string().min(2).max(1_000).optional(),
   }),
-  requestContextSchema,
+  requestContextSchema: eveeRequestContextSchema,
   execute: async ({ opportunityId, instruction }, context) => {
-    const replyDraft = await rewriteOpportunity(runtimeUserId(context), opportunityId, instruction);
+    const replyDraft = await rewriteOpportunity(getRuntimeUserId(context), opportunityId, instruction);
     return { opportunityId, replyDraft };
   },
 });
-
-export const eveeTools = {
-  createMonitor: createMonitorTool,
-  findOpportunities: findOpportunitiesTool,
-  getLatestDigest: getLatestDigestTool,
-  getProductProfile: getProductProfileTool,
-  manageAlerts: manageAlertsTool,
-  manageSettings: manageSettingsTool,
-  recordFeedback: recordFeedbackTool,
-  rewriteOpportunity: rewriteOpportunityTool,
-};
