@@ -9,12 +9,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/google": "^4.0.36",
+    "@evee/agents": "workspace:*",
     "@evee/auth": "workspace:*",
     "@evee/platform": "workspace:*",
-    "@mastra/core": "^1.57.0",
-    "@mastra/libsql": "^1.19.0",
-    "@mastra/memory": "^1.26.0",
     "@next/env": "latest",
     "@phosphor-icons/react": "latest",
     "@tailwindcss/postcss": "latest",
