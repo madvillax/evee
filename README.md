@@ -44,7 +44,6 @@ drizzle/                generated SQL migrations
 Prerequisites:
 
 - Bun 1.3+
-- Node.js 24
 - A Telegram bot token from BotFather
 - A direct Gemini API key from Google AI Studio
 - A Turso database, or `file:local.db` for local-only development
@@ -52,7 +51,6 @@ Prerequisites:
 Install dependencies and create your local environment file:
 
 ```bash
-fnm use 24
 bun install
 cp .env.example .env
 bun run db:migrate
@@ -110,7 +108,6 @@ The code expires after ten minutes, is stored only as a hash, can be used once, 
 For a production-like local run, build the app and start the web and worker processes. The web process serves the authenticated copilot; the worker owns Mastra storage initialization and cron schedules:
 
 ```bash
-fnm use 24
 bun run build
 
 # Terminal 1: web
