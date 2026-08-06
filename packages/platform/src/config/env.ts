@@ -37,8 +37,6 @@ const schema = z.object({
   EVEE_REPO_ROOT: optionalString,
   GITHUB_TOKEN: optionalString,
   REDDIT_USER_AGENT: z.string().default("evee/0.2 (opportunity monitoring bot)"),
-  TRIGGER_SECRET_KEY: optionalString,
-  TRIGGER_PROJECT_REF: optionalString,
   DEFAULT_RSS_FEEDS: z.string().default(""),
 });
 
