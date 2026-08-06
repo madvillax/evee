@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-import { withEve } from "eve/next";
 import { loadEnvConfig } from "@next/env";
 import path from "node:path";
 
@@ -17,6 +16,4 @@ const nextConfig: NextConfig = {
   // intentionally remains the repository root for deployment tracing.
 };
 
-export default withEve(nextConfig, {
-  eveRoot: "../..",
-});
+export default nextConfig;
