@@ -11,8 +11,8 @@ import {
   Robot,
   Stop,
 } from "@phosphor-icons/react";
-import { type EveMessage, useEveAgent } from "eve/react";
 import { memo, type KeyboardEvent, type RefObject, useRef, useState } from "react";
+import { type CopilotMessage, useCopilotChat } from "./use-copilot-chat";
 
 type CopilotCommand = {
   name: string;
@@ -128,12 +128,12 @@ function ChatComposer({
   );
 }
 
-const ChatMessages = memo(function ChatMessages({ messages }: { messages: readonly EveMessage[] }) {
+const ChatMessages = memo(function ChatMessages({ messages }: { messages: readonly CopilotMessage[] }) {
   return (
     <div className="mx-auto grid max-w-2xl gap-5">
       {messages.map((message) => (
         <div key={message.id} className={message.role === "user" ? "ml-auto max-w-[82%] rounded-[12px] bg-[var(--accent)] px-3.5 py-2.5 text-xs leading-5 text-[var(--accent-foreground)]" : "max-w-[92%] text-xs leading-6 text-[var(--text)]"}>
-          {message.parts.map((part, index) => part.type === "text" ? <p className="whitespace-pre-wrap" key={index}>{part.text}</p> : null)}
+          <p className="whitespace-pre-wrap">{message.text}</p>
         </div>
       ))}
     </div>
@@ -144,17 +144,17 @@ export function AgentChat() {
   const [draft, setDraft] = useState("");
   const [activeCommandIndex, setActiveCommandIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const agent = useEveAgent({ prepareSend: (input) => ({ ...input, clientContext: { route: "/dashboard/agents", surface: "gtm-copilot" } }) });
+  const agent = useCopilotChat();
   const busy = agent.status === "submitted" || agent.status === "streaming";
   const commandQuery = draft.startsWith("/") && !draft.includes(" ") ? draft.toLowerCase() : "";
   const suggestions = commandQuery ? commands.filter((command) => command.name.startsWith(commandQuery)) : [];
-  const empty = agent.data.messages.length === 0;
+  const empty = agent.messages.length === 0;
 
   function executeCommand(command: CopilotCommand, argumentsText = "") {
     if (busy) return;
     setDraft("");
     setActiveCommandIndex(0);
-    void agent.send({ message: `${command.name}${argumentsText ? ` ${argumentsText}` : ""}` });
+    void agent.send(`${command.name}${argumentsText ? ` ${argumentsText}` : ""}`);
   }
 
   function send(message = draft) {
@@ -170,7 +170,7 @@ export function AgentChat() {
     }
     setDraft("");
     setActiveCommandIndex(0);
-    void agent.send({ message: text });
+    void agent.send(text);
   }
 
   function showCommands() {
@@ -254,7 +254,7 @@ export function AgentChat() {
             <div><h1 className="text-xs font-semibold">Evee Copilot</h1><p className="text-[9px] text-[var(--text-faint)]">Connected to your workspace</p></div>
           </div>
           <div className="flex-1 overflow-y-auto py-6">
-            <ChatMessages messages={agent.data.messages} />
+            <ChatMessages messages={agent.messages} />
             {busy ? <div className="mx-auto mt-5 flex max-w-2xl items-center gap-2 text-xs text-[var(--text-faint)]"><CircleNotch className="animate-spin" size={14} />Working across your workspace...</div> : null}
           </div>
           {agent.error ? <p className="mx-auto mb-2 w-full max-w-2xl rounded-[9px] bg-[color-mix(in_srgb,var(--danger)_8%,transparent)] px-3 py-2 text-xs text-[var(--danger)]">{agent.error.message}</p> : null}
