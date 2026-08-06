@@ -18,7 +18,7 @@ export default async function MonitorsPage() {
       <section className="grid overflow-hidden rounded-[10px] border bg-[var(--surface)] sm:grid-cols-3">{[["Total monitors", monitors.length], ["Active", activeCount], ["Source types", sourceCount]].map(([label, value]) => <div key={String(label)} className="border-r px-4 py-3.5 last:border-r-0 max-sm:border-b max-sm:border-r-0"><p className="text-[11px] text-[var(--text-faint)]">{label}</p><p className="mt-2 font-mono text-2xl leading-none tracking-[-0.05em]">{value}</p></div>)}</section>
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(300px,0.5fr)]">
         <section className="rounded-[10px] border bg-[var(--surface)]">
-          <div className="border-b px-4 py-3.5"><h2 className="text-xs font-semibold">Source monitors</h2><p className="mt-0.5 text-[11px] text-[var(--text-faint)]">Enabled monitors are scanned by Trigger.dev schedules.</p></div>
+          <div className="border-b px-4 py-3.5"><h2 className="text-xs font-semibold">Source monitors</h2><p className="mt-0.5 text-[11px] text-[var(--text-faint)]">Enabled monitors are scanned every twenty minutes by the Mastra worker.</p></div>
           {monitors.length ? <div className="divide-y">{monitors.map((monitor) => (
             <div key={monitor.id} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3.5 hover:bg-[var(--surface-subtle)]">
               <span className="grid size-7 place-items-center rounded-[7px] bg-[var(--surface-subtle)] text-[var(--text-faint)]"><Crosshair size={14} /></span>
