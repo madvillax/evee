@@ -1,7 +1,7 @@
 import { and, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import type { Candidate, FeedbackValue, OpportunityAnalysis, Profile, ProfileInput, StoredOpportunity } from "../domain/types";
 import { db } from "./client";
-import { conversations, feedback, monitorRuns, opportunities, profiles, sources, telegramConnections, userDigests, users } from "./schema";
+import { conversations, feedback, monitorRuns, opportunities, profiles, scheduledRunClaims, sources, telegramConnections, userDigests, users } from "./schema";
 
 const now = () => Date.now();
 const id = () => crypto.randomUUID();
@@ -69,6 +69,27 @@ export async function getUser(userId: string) {
 
 export async function listActiveUsers() {
   return db.select().from(users).where(eq(users.alertsEnabled, true));
+}
+
+/**
+ * Atomically claim a scheduled unit of work. The composite key prevents a
+ * deploy overlap or scheduler replay from scanning/notifying the same user in
+ * the same time bucket twice.
+ */
+export async function claimScheduledRun(kind: "monitor" | "digest", userId: string, bucket: number) {
+  const inserted = await db.insert(scheduledRunClaims)
+    .values({ kind, userId, bucket, claimedAt: now() })
+    .onConflictDoNothing()
+    .returning({ userId: scheduledRunClaims.userId });
+  return inserted.length === 1;
+}
+
+export async function releaseScheduledRun(kind: "monitor" | "digest", userId: string, bucket: number) {
+  await db.delete(scheduledRunClaims).where(and(
+    eq(scheduledRunClaims.kind, kind),
+    eq(scheduledRunClaims.userId, userId),
+    eq(scheduledRunClaims.bucket, bucket),
+  ));
 }
 
 export async function setOnboarding(userId: string, step: string, data: Record<string, unknown>) {
