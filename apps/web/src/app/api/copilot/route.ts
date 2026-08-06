@@ -3,8 +3,6 @@ import { auth } from "@evee/auth";
 import { ensureWorkspaceForAuthUser, getWorkspaceForAuthUser } from "@evee/platform/db/workspaces";
 import { z } from "zod";
 
-export const runtime = "nodejs";
-
 const requestSchema = z.object({
   message: z.string().trim().min(1).max(16_000),
 });
