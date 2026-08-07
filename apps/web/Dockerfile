@@ -5,7 +5,12 @@ WORKDIR /app
 COPY . .
 
 RUN bun install --frozen-lockfile
-RUN bun run --cwd apps/web build
+
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Better Auth is imported while Next collects route data. Use a public,
+# build-only placeholder here; Railway supplies the real secret at runtime.
+RUN BETTER_AUTH_SECRET=evee-build-placeholder-only-not-for-runtime bun run --cwd apps/web build
 
 ENV NODE_ENV=production
 
