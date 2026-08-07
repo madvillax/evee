@@ -10,8 +10,8 @@ import {
   profiles,
   sources,
   subscriptions,
-  telegramConnections,
-  telegramLinkCodes,
+  discordConnections,
+  discordLinkCodes,
   userDigests,
   users,
   workspaceMembers,
@@ -54,8 +54,8 @@ export async function ensureWorkspaceForAuthUser(authUser: { id: string; name: s
     id: runtimeUserId,
     workspaceId,
     authUserId: authUser.id,
-    telegramUserId: `web:${authUser.id}`,
-    telegramChatId: `web:${authUser.id}`,
+    discordUserId: `web:${authUser.id}`,
+    discordChannelId: `web:${authUser.id}`,
     firstName: authUser.name,
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -65,7 +65,7 @@ export async function ensureWorkspaceForAuthUser(authUser: { id: string; name: s
     id: id(), workspaceId, status: "trialing", plan: "starter", createdAt: timestamp, updatedAt: timestamp,
   }).onConflictDoNothing();
 
-  const integrationTypes = ["reddit", "github", "hackernews", "rss", "telegram", "slack", "email", "x"] as const;
+  const integrationTypes = ["reddit", "github", "hackernews", "rss", "discord", "slack", "email", "x"] as const;
   await db.insert(integrations).values(integrationTypes.map((type) => ({
     id: id(),
     workspaceId,
@@ -131,15 +131,15 @@ export async function getWorkspaceSubscription(workspaceId: string) {
   return db.query.subscriptions.findFirst({ where: eq(subscriptions.workspaceId, workspaceId) });
 }
 
-export async function getTelegramConnection(workspaceId: string) {
-  return db.query.telegramConnections.findFirst({ where: eq(telegramConnections.workspaceId, workspaceId) });
+export async function getDiscordConnection(workspaceId: string) {
+  return db.query.discordConnections.findFirst({ where: eq(discordConnections.workspaceId, workspaceId) });
 }
 
 const linkAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 function linkSecret() {
-  const secret = env.TELEGRAM_LINK_SECRET ?? env.BETTER_AUTH_SECRET;
-  if (!secret || secret.length < 24) throw new Error("TELEGRAM_LINK_SECRET must be at least 24 characters.");
+  const secret = env.BETTER_AUTH_SECRET;
+  if (!secret || secret.length < 24) throw new Error("BETTER_AUTH_SECRET must be at least 24 characters.");
   return secret;
 }
 
@@ -149,112 +149,82 @@ async function hashLinkCode(code: string) {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function createTelegramLinkCode(workspaceId: string, authUserId: string) {
+export async function createDiscordLinkCode(workspaceId: string, authUserId: string) {
   const timestamp = now();
-  await db.update(telegramLinkCodes).set({ consumedAt: timestamp })
-    .where(and(eq(telegramLinkCodes.workspaceId, workspaceId), isNull(telegramLinkCodes.consumedAt)));
+  await db.update(discordLinkCodes).set({ consumedAt: timestamp })
+    .where(and(eq(discordLinkCodes.workspaceId, workspaceId), isNull(discordLinkCodes.consumedAt)));
   const random = crypto.getRandomValues(new Uint8Array(8));
   const code = Array.from(random, (value) => linkAlphabet[value % linkAlphabet.length]!).join("");
   const expiresAt = timestamp + 10 * 60 * 1_000;
-  await db.insert(telegramLinkCodes).values({
+  await db.insert(discordLinkCodes).values({
     id: id(), workspaceId, authUserId, codeHash: await hashLinkCode(code), expiresAt, createdAt: timestamp,
   });
   return { code, expiresAt };
 }
 
-export async function consumeTelegramLinkCode(input: {
+export async function consumeDiscordLinkCode(input: {
   code: string;
-  telegramUserId: string;
-  telegramChatId: string;
-  telegramUsername?: string;
+  discordUserId: string;
+  discordGuildId: string;
+  discordChannelId: string;
+  discordUsername?: string;
   firstName?: string;
 }) {
   const codeHash = await hashLinkCode(input.code);
   return db.transaction(async (tx) => {
-    const rows = await tx.select().from(telegramLinkCodes)
-      .where(and(eq(telegramLinkCodes.codeHash, codeHash), isNull(telegramLinkCodes.consumedAt)))
+    const rows = await tx.select().from(discordLinkCodes)
+      .where(and(eq(discordLinkCodes.codeHash, codeHash), isNull(discordLinkCodes.consumedAt)))
       .limit(1);
     const link = rows[0];
     if (!link || link.expiresAt <= now()) throw new Error("That link code is invalid or expired.");
 
-    const existing = await tx.select().from(telegramConnections)
-      .where(eq(telegramConnections.telegramUserId, input.telegramUserId)).limit(1);
+    const existing = await tx.select().from(discordConnections)
+      .where(eq(discordConnections.discordUserId, input.discordUserId)).limit(1);
     if (existing[0] && existing[0].workspaceId !== link.workspaceId) {
-      throw new Error("This Telegram account is already linked to another workspace.");
+      throw new Error("This Discord account is already linked to another workspace.");
     }
 
     const runtime = await tx.select().from(users).where(eq(users.workspaceId, link.workspaceId)).limit(1);
     const runtimeUser = runtime[0];
     if (!runtimeUser) throw new Error("The workspace is not ready yet.");
-    const telegramUser = (await tx.select().from(users)
-      .where(eq(users.telegramUserId, input.telegramUserId)).limit(1))[0];
-    if (telegramUser?.workspaceId && telegramUser.workspaceId !== link.workspaceId) {
-      throw new Error("This Telegram account is already linked to another workspace.");
-    }
-
-    if (telegramUser && telegramUser.id !== runtimeUser.id) {
-      const [runtimeProfile, telegramProfile] = await Promise.all([
-        tx.select({ id: profiles.id }).from(profiles).where(eq(profiles.userId, runtimeUser.id)).limit(1),
-        tx.select({ id: profiles.id }).from(profiles).where(eq(profiles.userId, telegramUser.id)).limit(1),
-      ]);
-      if (telegramProfile[0]) {
-        if (runtimeProfile[0]) await tx.delete(profiles).where(eq(profiles.id, telegramProfile[0].id));
-        else await tx.update(profiles).set({ userId: runtimeUser.id }).where(eq(profiles.id, telegramProfile[0].id));
-      }
-
-      const runtimeConversationIds = new Set((await tx.select({ conversationId: opportunities.conversationId })
-        .from(opportunities).where(eq(opportunities.userId, runtimeUser.id))).map((row) => row.conversationId));
-      const duplicateOpportunityIds = (await tx.select({ id: opportunities.id, conversationId: opportunities.conversationId })
-        .from(opportunities).where(eq(opportunities.userId, telegramUser.id)))
-        .filter((row) => runtimeConversationIds.has(row.conversationId)).map((row) => row.id);
-      if (duplicateOpportunityIds.length) {
-        await tx.delete(opportunities).where(inArray(opportunities.id, duplicateOpportunityIds));
-      }
-
-      await tx.update(sources).set({ userId: runtimeUser.id }).where(eq(sources.userId, telegramUser.id));
-      await tx.update(opportunities).set({ userId: runtimeUser.id }).where(eq(opportunities.userId, telegramUser.id));
-      await tx.update(feedback).set({ userId: runtimeUser.id }).where(eq(feedback.userId, telegramUser.id));
-      await tx.update(monitorRuns).set({ userId: runtimeUser.id }).where(eq(monitorRuns.userId, telegramUser.id));
-      await tx.update(userDigests).set({ userId: runtimeUser.id }).where(eq(userDigests.userId, telegramUser.id));
-      await tx.delete(users).where(eq(users.id, telegramUser.id));
-    }
-
     const timestamp = now();
-    const claimed = await tx.update(telegramLinkCodes).set({ consumedAt: timestamp })
-      .where(and(eq(telegramLinkCodes.id, link.id), isNull(telegramLinkCodes.consumedAt)));
+    const claimed = await tx.update(discordLinkCodes).set({ consumedAt: timestamp })
+      .where(and(eq(discordLinkCodes.id, link.id), isNull(discordLinkCodes.consumedAt)));
     if (claimed.rowsAffected !== 1) throw new Error("That link code has already been used.");
 
     await tx.update(users).set({
-      telegramUserId: input.telegramUserId,
-      telegramChatId: input.telegramChatId,
+      discordUserId: input.discordUserId,
+      discordChannelId: input.discordChannelId,
       firstName: input.firstName ?? runtimeUser.firstName,
-      username: input.telegramUsername ?? runtimeUser.username,
+      username: input.discordUsername ?? runtimeUser.username,
       updatedAt: timestamp,
     }).where(eq(users.id, runtimeUser.id));
 
-    await tx.insert(telegramConnections).values({
+    await tx.insert(discordConnections).values({
       id: existing[0]?.id ?? id(),
       workspaceId: link.workspaceId,
       userId: runtimeUser.id,
       authUserId: link.authUserId,
-      telegramUserId: input.telegramUserId,
-      telegramChatId: input.telegramChatId,
-      telegramUsername: input.telegramUsername,
+      discordUserId: input.discordUserId,
+      discordGuildId: input.discordGuildId,
+      discordChannelId: input.discordChannelId,
+      discordUsername: input.discordUsername,
       firstName: input.firstName,
       linkedAt: existing[0]?.linkedAt ?? timestamp,
       updatedAt: timestamp,
     }).onConflictDoUpdate({
-      target: telegramConnections.workspaceId,
+      target: discordConnections.workspaceId,
       set: {
-        telegramUserId: input.telegramUserId,
-        telegramChatId: input.telegramChatId,
-        telegramUsername: input.telegramUsername,
+        discordUserId: input.discordUserId,
+        discordGuildId: input.discordGuildId,
+        discordChannelId: input.discordChannelId,
+        discordUsername: input.discordUsername,
         firstName: input.firstName,
         updatedAt: timestamp,
       },
     });
-    await tx.update(integrations).set({ status: "connected", externalAccountId: input.telegramUserId, updatedAt: timestamp })
-      .where(and(eq(integrations.workspaceId, link.workspaceId), eq(integrations.type, "telegram")));
+    await tx.update(integrations).set({ status: "connected", externalAccountId: input.discordGuildId, updatedAt: timestamp })
+      .where(and(eq(integrations.workspaceId, link.workspaceId), eq(integrations.type, "discord")));
     return { workspaceId: link.workspaceId, userId: runtimeUser.id };
   });
 }
