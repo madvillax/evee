@@ -7,7 +7,6 @@ loadEnvConfig(repoRoot);
 process.env.EVEE_REPO_ROOT ??= repoRoot;
 
 const nextConfig: NextConfig = {
-  output: "standalone",
   transpilePackages: ["@evee/agents", "@evee/auth", "@evee/platform"],
   outputFileTracingRoot: repoRoot,
   experimental: {

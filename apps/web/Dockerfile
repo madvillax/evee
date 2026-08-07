@@ -22,11 +22,9 @@ FROM oven/bun:1.3.14 AS runner
 
 WORKDIR /app
 
-COPY --from=builder /app/apps/web/.next/standalone ./
-COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
-COPY --from=builder /app/apps/web/public ./apps/web/public
+COPY --from=builder /app /app
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-CMD ["sh", "-c", "PORT=${PORT:-3001} HOSTNAME=0.0.0.0 bun apps/web/server.js"]
+CMD ["sh", "-c", "cd /app/apps/web && bun run --bun next start -H 0.0.0.0 -p ${PORT:-3001}"]
