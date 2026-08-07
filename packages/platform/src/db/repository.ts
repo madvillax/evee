@@ -1,7 +1,7 @@
 import { and, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import type { Candidate, FeedbackValue, OpportunityAnalysis, Profile, ProfileInput, StoredOpportunity } from "../domain/types";
 import { db } from "./client";
-import { conversations, feedback, monitorRuns, opportunities, profiles, scheduledRunClaims, sources, telegramConnections, userDigests, users } from "./schema";
+import { conversations, discordConnections, feedback, monitorRuns, opportunities, profiles, scheduledRunClaims, sources, userDigests, users } from "./schema";
 
 const now = () => Date.now();
 const id = () => crypto.randomUUID();
@@ -9,58 +9,21 @@ const id = () => crypto.randomUUID();
 export type UserRow = typeof users.$inferSelect;
 export type SourceRow = typeof sources.$inferSelect;
 
-export async function ensureTelegramUser(input: {
-  telegramUserId: string;
-  telegramChatId: string;
-  firstName?: string;
-  username?: string;
-}): Promise<UserRow> {
-  const linked = await db.select({ connection: telegramConnections, user: users })
-    .from(telegramConnections)
-    .innerJoin(users, eq(telegramConnections.userId, users.id))
-    .where(eq(telegramConnections.telegramUserId, input.telegramUserId))
+export async function getUserForDiscordInteraction(input: {
+  discordUserId: string;
+  discordGuildId: string;
+  discordChannelId: string;
+}): Promise<UserRow | undefined> {
+  const linked = await db.select({ user: users })
+    .from(discordConnections)
+    .innerJoin(users, eq(discordConnections.userId, users.id))
+    .where(and(
+      eq(discordConnections.discordUserId, input.discordUserId),
+      eq(discordConnections.discordGuildId, input.discordGuildId),
+      eq(discordConnections.discordChannelId, input.discordChannelId),
+    ))
     .limit(1);
-  if (linked[0]) {
-    const timestamp = now();
-    await db.update(telegramConnections).set({
-      telegramChatId: input.telegramChatId,
-      telegramUsername: input.username ?? linked[0].connection.telegramUsername,
-      firstName: input.firstName ?? linked[0].connection.firstName,
-      updatedAt: timestamp,
-    }).where(eq(telegramConnections.id, linked[0].connection.id));
-    await db.update(users).set({
-      telegramChatId: input.telegramChatId,
-      ...(input.firstName ? { firstName: input.firstName } : {}),
-      ...(input.username ? { username: input.username } : {}),
-      updatedAt: timestamp,
-    }).where(eq(users.id, linked[0].user.id));
-    return { ...linked[0].user, telegramChatId: input.telegramChatId, updatedAt: timestamp };
-  }
-  const existing = await db.query.users.findFirst({
-    where: eq(users.telegramUserId, input.telegramUserId),
-  });
-  const timestamp = now();
-  if (existing) {
-    await db.update(users).set({
-      telegramChatId: input.telegramChatId,
-      ...(input.firstName ? { firstName: input.firstName } : {}),
-      ...(input.username ? { username: input.username } : {}),
-      updatedAt: timestamp,
-    }).where(eq(users.id, existing.id));
-    return { ...existing, telegramChatId: input.telegramChatId, updatedAt: timestamp };
-  }
-
-  const row: typeof users.$inferInsert = {
-    id: id(),
-    telegramUserId: input.telegramUserId,
-    telegramChatId: input.telegramChatId,
-    firstName: input.firstName,
-    username: input.username,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-  await db.insert(users).values(row);
-  return (await db.query.users.findFirst({ where: eq(users.id, row.id) }))!;
+  return linked[0]?.user;
 }
 
 export async function getUser(userId: string) {
@@ -68,7 +31,10 @@ export async function getUser(userId: string) {
 }
 
 export async function listActiveUsers() {
-  return db.select().from(users).where(eq(users.alertsEnabled, true));
+  return db.select({ user: users }).from(users)
+    .innerJoin(discordConnections, eq(discordConnections.userId, users.id))
+    .where(eq(users.alertsEnabled, true))
+    .then((rows) => rows.map((row) => row.user));
 }
 
 /**
