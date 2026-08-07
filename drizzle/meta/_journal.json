@@ -29,6 +29,20 @@
       "when": 1786038890704,
       "tag": "0003_small_hellfire_club",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1786106736000,
+      "tag": "0004_discord_companion",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1786106948493,
+      "tag": "0005_productive_callisto",
+      "breakpoints": true
     }
   ]
 }

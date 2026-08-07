@@ -5,7 +5,7 @@ test("normalizes public source text", () => {
   expect(cleanText("<p>Hello &amp; welcome</p>\n\nworld")).toBe("Hello & welcome world");
 });
 
-test("escapes Telegram HTML", () => {
+test("escapes channel message HTML", () => {
   expect(escapeHtml('<script a="1">&')).toBe("&lt;script a=&quot;1&quot;&gt;&amp;");
 });
 

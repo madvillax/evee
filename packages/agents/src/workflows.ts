@@ -1,6 +1,5 @@
 import { createStep, createWorkflow } from "@mastra/core/workflows";
-import { createTelegramBot } from "@evee/platform/bot/bot";
-import { sendDailyDigest, sendPendingAlerts } from "@evee/platform/bot/notifications";
+import { DiscordClient, sendDailyDigest, sendPendingAlerts } from "@evee/platform/bot/notifications";
 import { env } from "@evee/platform/config/env";
 import { claimScheduledRun, getUser, listActiveUsers, releaseScheduledRun } from "@evee/platform/db/repository";
 import { monitorUser } from "@evee/platform/services/monitor";
@@ -70,8 +69,8 @@ const monitorAllStep = createStep({
         const result = await retry(async () => {
           const monitorResult = await monitorUser(user.id);
           const freshUser = await getUser(user.id);
-          const sent = freshUser && env.TELEGRAM_BOT_TOKEN
-            ? await sendPendingAlerts(createTelegramBot(env.TELEGRAM_BOT_TOKEN), freshUser)
+          const sent = freshUser && env.DISCORD_BOT_TOKEN
+            ? await sendPendingAlerts(new DiscordClient(env.DISCORD_BOT_TOKEN), freshUser)
             : 0;
           return { monitorResult, sent };
         }, 5, 60_000);
@@ -93,11 +92,11 @@ const dailyDigestStep = createStep({
   inputSchema: monitorSchedule,
   outputSchema: digestOutput,
   execute: async () => {
-    if (!env.TELEGRAM_BOT_TOKEN) throw new Error("TELEGRAM_BOT_TOKEN is required to send digests.");
+    if (!env.DISCORD_BOT_TOKEN) throw new Error("DISCORD_BOT_TOKEN is required to send digests.");
     const activeUsers = await listActiveUsers();
     const timestamp = Date.now();
     const bucket = Math.floor(timestamp / 3_600_000);
-    const bot = createTelegramBot(env.TELEGRAM_BOT_TOKEN);
+    const discord = new DiscordClient(env.DISCORD_BOT_TOKEN);
     let opportunitiesSent = 0;
     let failed = 0;
 
@@ -109,7 +108,7 @@ const dailyDigestStep = createStep({
       const claimed = await claimScheduledRun("digest", user.id, bucket);
       if (!claimed) continue;
       try {
-        opportunitiesSent += await retry(() => sendDailyDigest(bot, user), 4, 30_000);
+        opportunitiesSent += await retry(() => sendDailyDigest(discord, user), 4, 30_000);
       } catch (error) {
         failed += 1;
         await releaseScheduledRun("digest", user.id, bucket);
@@ -123,7 +122,7 @@ const dailyDigestStep = createStep({
 
 export const monitorAllWorkflow = createWorkflow({
   id: "schedule-opportunity-monitoring",
-  description: "Checks active workspace monitors every twenty minutes and sends pending Telegram alerts.",
+  description: "Checks active workspace monitors every twenty minutes and sends pending Discord alerts.",
   inputSchema: monitorSchedule,
   outputSchema: monitorOutput,
   schedule: { id: "every-twenty-minutes", cron: "*/20 * * * *", inputData: {} },
@@ -132,8 +131,8 @@ export const monitorAllWorkflow = createWorkflow({
   .commit();
 
 export const dailyDigestWorkflow = createWorkflow({
-  id: "schedule-daily-telegram-digests",
-  description: "Checks each active workspace's local time hourly and sends its daily Telegram digest when due.",
+  id: "schedule-daily-discord-digests",
+  description: "Checks each active workspace's local time hourly and sends its daily Discord digest when due.",
   inputSchema: monitorSchedule,
   outputSchema: digestOutput,
   schedule: { id: "hourly-timezone-check", cron: "5 * * * *", inputData: {} },

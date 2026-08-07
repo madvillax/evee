@@ -24,11 +24,11 @@ const geminiModel = z.preprocess(
 );
 
 const schema = z.object({
-  TELEGRAM_BOT_TOKEN: optionalString,
-  TELEGRAM_WEBHOOK_SECRET: optionalString,
-  TELEGRAM_LINK_SECRET: optionalString,
+  DISCORD_APPLICATION_ID: optionalString,
+  DISCORD_PUBLIC_KEY: optionalString,
+  DISCORD_BOT_TOKEN: optionalString,
+  DISCORD_TEST_GUILD_ID: optionalString,
   BETTER_AUTH_SECRET: optionalString,
-  BOT_MODE: z.enum(["polling", "webhook"]).default("polling"),
   PORT: optionalPort,
   GEMINI_API_KEY: optionalString,
   GEMINI_MODEL: geminiModel,

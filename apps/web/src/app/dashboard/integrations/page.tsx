@@ -1,8 +1,8 @@
-import { getTelegramConnection } from "@evee/platform/db/workspaces";
-import { ArrowRight, GithubLogo, RedditLogo, Rss, TelegramLogo } from "@phosphor-icons/react/dist/ssr";
+import { getDiscordConnection } from "@evee/platform/db/workspaces";
+import { ArrowRight, DiscordLogo, GithubLogo, RedditLogo, Rss } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
-import { TelegramLink } from "@/components/telegram-link";
+import { DiscordLink } from "@/components/discord-link";
 import { requireWorkspace } from "@/lib/session";
 
 const sources = [
@@ -16,7 +16,7 @@ export const metadata = { title: "Connections" };
 
 export default async function ConnectionsPage() {
   const { workspace } = await requireWorkspace();
-  const telegram = await getTelegramConnection(workspace.id);
+  const discord = await getDiscordConnection(workspace.id);
 
   return (
     <div className="grid gap-5">
@@ -50,18 +50,18 @@ export default async function ConnectionsPage() {
         <section className="overflow-hidden rounded-[10px] border bg-[var(--surface)]">
           <div className="flex items-center gap-3 border-b px-4 py-3.5">
             <span className="grid size-8 place-items-center rounded-[8px] bg-[var(--accent-soft)] text-[var(--accent)]">
-              <TelegramLogo size={17} weight="fill" />
+              <DiscordLogo size={17} weight="fill" />
             </span>
             <div>
-              <h2 className="text-xs font-semibold">Telegram companion</h2>
+              <h2 className="text-xs font-semibold">Discord companion</h2>
               <p className="mt-0.5 text-[11px] text-[var(--text-faint)]">Alerts, digests, feedback, and quick actions</p>
             </div>
           </div>
           <div className="p-4">
             <p className="mb-4 text-[12px] leading-5 text-[var(--text-muted)]">
-              Link your Telegram account to receive qualified opportunities and work with the same Evee workspace away from the dashboard.
+              Connect the Discord channel where your team should receive qualified opportunities, digests, feedback controls, and quick actions.
             </p>
-            <TelegramLink initiallyConnected={Boolean(telegram)} username={telegram?.telegramUsername} />
+            <DiscordLink initiallyConnected={Boolean(discord)} username={discord?.discordUsername} />
           </div>
         </section>
       </div>

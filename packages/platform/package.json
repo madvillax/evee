@@ -16,7 +16,6 @@
     "drizzle-orm": "latest",
     "dotenv": "latest",
     "fast-xml-parser": "latest",
-    "grammy": "latest",
     "zod": "latest"
   },
   "devDependencies": {

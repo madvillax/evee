@@ -1,6 +1,6 @@
 import { ArrowRight, ChartLineUp, Crosshair, PaperPlaneTilt, Target } from "@phosphor-icons/react/dist/ssr";
 import { getProfile, listOpportunitiesForUser } from "@evee/platform/db/repository";
-import { getTelegramConnection, getWorkspaceDashboard } from "@evee/platform/db/workspaces";
+import { getDiscordConnection, getWorkspaceDashboard } from "@evee/platform/db/workspaces";
 import Link from "next/link";
 import { HorizontalMeter, MiniLine, ScoreRing } from "@/components/metric-visuals";
 import { PageHeader } from "@/components/page-header";
@@ -59,14 +59,14 @@ function ScanActivity({ runs }: { runs: Array<{ id: string; startedAt: number; c
 
 export default async function DashboardPage() {
   const { runtimeUser, workspace } = await requireWorkspace();
-  const [stats, opportunities, profile, telegram] = await Promise.all([
+  const [stats, opportunities, profile, discord] = await Promise.all([
     getWorkspaceDashboard(runtimeUser.id),
     listOpportunitiesForUser(runtimeUser.id, 5),
     getProfile(runtimeUser.id),
-    getTelegramConnection(workspace.id),
+    getDiscordConnection(workspace.id),
   ]);
   const runValues = [...stats.recentRuns].reverse();
-  const readiness = [Boolean(profile), stats.activeMonitors > 0, Boolean(telegram)].filter(Boolean).length;
+  const readiness = [Boolean(profile), stats.activeMonitors > 0, Boolean(discord)].filter(Boolean).length;
 
   return (
     <div className="grid gap-5">
@@ -89,7 +89,7 @@ export default async function DashboardPage() {
             {[
               { index: "01", label: "Business profile", ready: Boolean(profile), href: "/dashboard/business" },
               { index: "02", label: "Source monitors", ready: stats.activeMonitors > 0, href: "/dashboard/monitors" },
-              { index: "03", label: "Telegram companion", ready: Boolean(telegram), href: "/dashboard/integrations" },
+              { index: "03", label: "Discord companion", ready: Boolean(discord), href: "/dashboard/integrations" },
             ].map((item) => (
               <Link href={item.href} key={item.label} className="group flex items-center gap-3 px-4 py-3.5 hover:bg-[var(--surface-subtle)]">
                 <span className="font-mono text-[10px] text-[var(--text-faint)]">{item.index}</span><span className="flex-1 text-xs font-medium">{item.label}</span><span className={`text-[10px] font-semibold ${item.ready ? "text-[var(--success)]" : "text-[var(--warning)]"}`}>{item.ready ? "Ready" : "Set up"}</span><ArrowRight size={12} className="text-[var(--text-faint)] transition-transform group-hover:translate-x-0.5" />

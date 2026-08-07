@@ -1,22 +1,18 @@
-import { webhookCallback } from "grammy";
-import { createTelegramBot, telegramCommands } from "@evee/platform/bot/bot";
+import { handleDiscordInteraction, registerDiscordCommands } from "@evee/platform/bot/discord";
 import { env } from "@evee/platform/config/env";
 
-const bot = env.TELEGRAM_BOT_TOKEN ? createTelegramBot(env.TELEGRAM_BOT_TOKEN) : undefined;
-const webhook = bot && env.BOT_MODE === "webhook" ? webhookCallback(bot, "bun") : undefined;
+const discordConfigured = Boolean(env.DISCORD_APPLICATION_ID && env.DISCORD_PUBLIC_KEY && env.DISCORD_BOT_TOKEN);
 
-if (bot) {
+if (discordConfigured) {
   try {
-    await bot.api.setMyCommands(telegramCommands);
+    await registerDiscordCommands({
+      applicationId: env.DISCORD_APPLICATION_ID!,
+      botToken: env.DISCORD_BOT_TOKEN!,
+      ...(env.DISCORD_TEST_GUILD_ID ? { testGuildId: env.DISCORD_TEST_GUILD_ID } : {}),
+    });
   } catch (error) {
-    console.error("Could not register Telegram command menu", error);
+    console.error("Could not register Discord slash commands", error);
   }
-}
-
-if (bot && env.BOT_MODE === "polling") {
-  void bot.start({
-    onStart: ({ username }) => console.log(`Telegram bot @${username} started with long polling.`),
-  });
 }
 
 const server = Bun.serve({
@@ -26,23 +22,18 @@ const server = Bun.serve({
     if (url.pathname === "/health") {
       return Response.json({
         ok: true,
-        telegramConfigured: Boolean(bot),
-        botMode: env.BOT_MODE,
+        discordConfigured,
         geminiConfigured: Boolean(env.GEMINI_API_KEY),
         timestamp: new Date().toISOString(),
       });
     }
-    if (url.pathname === "/telegram/webhook" && request.method === "POST") {
-      if (!webhook) return new Response("Telegram is not configured", { status: 503 });
-      if (env.TELEGRAM_WEBHOOK_SECRET) {
-        const supplied = request.headers.get("x-telegram-bot-api-secret-token");
-        if (supplied !== env.TELEGRAM_WEBHOOK_SECRET) return new Response("Unauthorized", { status: 401 });
-      }
-      return webhook(request);
+    if (url.pathname === "/discord/interactions" && request.method === "POST") {
+      if (!discordConfigured) return new Response("Discord is not configured", { status: 503 });
+      return handleDiscordInteraction(request, { publicKey: env.DISCORD_PUBLIC_KEY!, botToken: env.DISCORD_BOT_TOKEN! });
     }
     return new Response("Evee", { status: 200 });
   },
 });
 
 console.log(`Evee listening on http://localhost:${server.port}`);
-if (!bot) console.warn("TELEGRAM_BOT_TOKEN is not set; health server only.");
+if (!discordConfigured) console.warn("Discord credentials are not set; health server only.");

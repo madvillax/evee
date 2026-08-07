@@ -67,8 +67,8 @@ export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").references(() => workspaces.id, { onDelete: "cascade" }),
   authUserId: text("auth_user_id").references(() => authUsers.id, { onDelete: "set null" }),
-  telegramUserId: text("telegram_user_id").notNull().unique(),
-  telegramChatId: text("telegram_chat_id").notNull(),
+  discordUserId: text("discord_user_id").notNull().unique(),
+  discordChannelId: text("discord_channel_id").notNull(),
   firstName: text("first_name"),
   username: text("username"),
   timezone: text("timezone").notNull().default("UTC"),
@@ -82,20 +82,21 @@ export const users = sqliteTable("users", {
   updatedAt: integer("updated_at").notNull(),
 }, (table) => [uniqueIndex("users_workspace_id_unique").on(table.workspaceId)]);
 
-export const telegramConnections = sqliteTable("telegram_connections", {
+export const discordConnections = sqliteTable("discord_connections", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   authUserId: text("auth_user_id").notNull().references(() => authUsers.id, { onDelete: "cascade" }),
-  telegramUserId: text("telegram_user_id").notNull().unique(),
-  telegramChatId: text("telegram_chat_id").notNull(),
-  telegramUsername: text("telegram_username"),
+  discordUserId: text("discord_user_id").notNull().unique(),
+  discordGuildId: text("discord_guild_id").notNull(),
+  discordChannelId: text("discord_channel_id").notNull(),
+  discordUsername: text("discord_username"),
   firstName: text("first_name"),
   linkedAt: integer("linked_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
-}, (table) => [uniqueIndex("telegram_connections_workspace_unique").on(table.workspaceId)]);
+}, (table) => [uniqueIndex("discord_connections_workspace_unique").on(table.workspaceId)]);
 
-export const telegramLinkCodes = sqliteTable("telegram_link_codes", {
+export const discordLinkCodes = sqliteTable("discord_link_codes", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
   authUserId: text("auth_user_id").notNull().references(() => authUsers.id, { onDelete: "cascade" }),
@@ -103,12 +104,12 @@ export const telegramLinkCodes = sqliteTable("telegram_link_codes", {
   expiresAt: integer("expires_at").notNull(),
   consumedAt: integer("consumed_at"),
   createdAt: integer("created_at").notNull(),
-}, (table) => [index("telegram_link_codes_workspace_idx").on(table.workspaceId)]);
+}, (table) => [index("discord_link_codes_workspace_idx").on(table.workspaceId)]);
 
 export const integrations = sqliteTable("integrations", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
-  type: text("type", { enum: ["reddit", "github", "hackernews", "rss", "telegram", "slack", "email", "x"] }).notNull(),
+  type: text("type", { enum: ["reddit", "github", "hackernews", "rss", "discord", "slack", "email", "x"] }).notNull(),
   status: text("status", { enum: ["connected", "needs_attention", "disconnected"] }).notNull().default("disconnected"),
   displayName: text("display_name").notNull(),
   externalAccountId: text("external_account_id"),

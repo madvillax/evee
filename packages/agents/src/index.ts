@@ -29,7 +29,7 @@ export const mastra = new Mastra({
   },
   workflows: {
     "schedule-opportunity-monitoring": monitorAllWorkflow,
-    "schedule-daily-telegram-digests": dailyDigestWorkflow,
+    "schedule-daily-discord-digests": dailyDigestWorkflow,
   },
   storage: mastraStorage,
   // A web server only serves requests; it never runs schedules. The standalone
