@@ -13,12 +13,15 @@ function Field({ label, helper, children }: { label: string; helper?: string; ch
 
 export const metadata = { title: "Business profile" };
 
-export default async function BusinessProfilePage() {
+export default async function BusinessProfilePage({ searchParams }: { searchParams: Promise<{ save?: string }> }) {
+  const { save } = await searchParams;
   const { runtimeUser } = await requireWorkspace();
   const profile = await getProfile(runtimeUser.id);
   return (
     <div className="grid gap-5">
       <PageHeader title="Business profile" description="This is the shared context used by monitors, opportunity scoring, reply drafts, Discord, and the GTM copilot." />
+      {save === "success" ? <p role="status" className="rounded-[8px] border border-[var(--success)]/30 bg-[color-mix(in_srgb,var(--success)_9%,transparent)] px-3 py-2 text-xs text-[var(--success)]">Profile saved successfully.</p> : null}
+      {save === "error" ? <p role="alert" className="rounded-[8px] border border-[var(--danger)]/30 bg-[color-mix(in_srgb,var(--danger)_9%,transparent)] px-3 py-2 text-xs text-[var(--danger)]">Profile could not be saved. Check the deployment database settings and try again.</p> : null}
       <form action={saveBusinessProfile} className="grid gap-4">
         <section className="rounded-[10px] border bg-[var(--surface)]">
           <div className="flex items-center gap-3 border-b px-4 py-3.5"><span className="font-mono text-[10px] text-[var(--text-faint)]">01</span><div><h2 className="text-xs font-semibold">Product</h2><p className="mt-0.5 text-[10px] text-[var(--text-faint)]">Core positioning and customer outcome</p></div></div>

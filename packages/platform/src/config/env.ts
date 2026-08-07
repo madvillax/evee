@@ -9,8 +9,13 @@ if (runtimeParent === "apps" || runtimeParent === "packages") {
 }
 
 const optionalString = z.preprocess(
-  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+  (value) => (typeof value === "string" ? value.trim() || undefined : value),
   z.string().optional(),
+);
+
+const databaseUrl = z.preprocess(
+  (value) => (typeof value === "string" ? value.trim() || undefined : value),
+  z.string().default("file:local.db"),
 );
 
 const optionalPort = z.preprocess(
@@ -32,7 +37,7 @@ const schema = z.object({
   PORT: optionalPort,
   GEMINI_API_KEY: optionalString,
   GEMINI_MODEL: geminiModel,
-  TURSO_DATABASE_URL: z.string().default("file:local.db"),
+  TURSO_DATABASE_URL: databaseUrl,
   TURSO_AUTH_TOKEN: optionalString,
   EVEE_REPO_ROOT: optionalString,
   GITHUB_TOKEN: optionalString,
