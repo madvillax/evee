@@ -4,15 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "BOT_MODE=polling bun --watch src/index.ts",
-    "start": "BOT_MODE=polling bun src/index.ts",
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit"
   },
-  "dependencies": {
-    "@evee/platform": "workspace:*",
-    "grammy": "latest"
-  },
+  "dependencies": { "@evee/platform": "workspace:*" },
   "devDependencies": {
     "@types/bun": "latest",
     "typescript": "^5.9.3"
