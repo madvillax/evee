@@ -18,7 +18,7 @@ export default async function BusinessProfilePage() {
   const profile = await getProfile(runtimeUser.id);
   return (
     <div className="grid gap-5">
-      <PageHeader title="Business profile" description="This is the shared context used by monitors, opportunity scoring, reply drafts, Telegram, and the GTM copilot." />
+      <PageHeader title="Business profile" description="This is the shared context used by monitors, opportunity scoring, reply drafts, Discord, and the GTM copilot." />
       <form action={saveBusinessProfile} className="grid gap-4">
         <section className="rounded-[10px] border bg-[var(--surface)]">
           <div className="flex items-center gap-3 border-b px-4 py-3.5"><span className="font-mono text-[10px] text-[var(--text-faint)]">01</span><div><h2 className="text-xs font-semibold">Product</h2><p className="mt-0.5 text-[10px] text-[var(--text-faint)]">Core positioning and customer outcome</p></div></div>
