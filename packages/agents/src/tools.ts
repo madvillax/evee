@@ -48,7 +48,7 @@ export const findOpportunitiesTool = createTool({
 
 export const getLatestDigestTool = createTool({
   id: "get-latest-digest",
-  description: "Read the workspace's latest qualified opportunities as a concise digest. This does not mark the Telegram digest as sent.",
+  description: "Read the workspace's latest qualified opportunities as a concise digest. This does not mark the Discord digest as sent.",
   inputSchema: z.object({}),
   requestContextSchema: eveeRequestContextSchema,
   execute: async (_input, context) => {
