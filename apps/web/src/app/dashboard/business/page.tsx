@@ -19,7 +19,7 @@ export default async function BusinessProfilePage({ searchParams }: { searchPara
   const profile = await getProfile(runtimeUser.id);
   return (
     <div className="grid gap-5">
-      <PageHeader title="Business profile" description="This is the shared context used by monitors, opportunity scoring, reply drafts, Discord, and the GTM copilot." />
+      <PageHeader title="Business profile" description="This is the shared context used by monitors, opportunity scoring, reply drafts, and the web copilot." />
       {save === "success" ? <p role="status" className="rounded-[8px] border border-[var(--success)]/30 bg-[color-mix(in_srgb,var(--success)_9%,transparent)] px-3 py-2 text-xs text-[var(--success)]">Profile saved successfully.</p> : null}
       {save === "error" ? <p role="alert" className="rounded-[8px] border border-[var(--danger)]/30 bg-[color-mix(in_srgb,var(--danger)_9%,transparent)] px-3 py-2 text-xs text-[var(--danger)]">Profile could not be saved. Check the deployment database settings and try again.</p> : null}
       <form action={saveBusinessProfile} className="grid gap-4">

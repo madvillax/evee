@@ -8,18 +8,19 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "@google/genai": "latest",
-    "@libsql/client": "latest",
+    "@libsql/client": "^0.17.4",
     "drizzle-orm": "latest",
     "dotenv": "latest",
     "fast-xml-parser": "latest",
     "zod": "latest"
   },
   "devDependencies": {
-    "@types/bun": "latest",
+    "@types/node": "latest",
+    "tsx": "latest",
     "typescript": "^5.9.3"
   }
 }

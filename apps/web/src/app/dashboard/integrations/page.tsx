@@ -1,8 +1,6 @@
-import { getDiscordConnection } from "@evee/platform/db/workspaces";
-import { ArrowRight, DiscordLogo, GithubLogo, RedditLogo, Rss } from "@phosphor-icons/react/dist/ssr";
+import { ArrowRight, Browser, GithubLogo, RedditLogo, Robot, Rss, Target } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
-import { DiscordLink } from "@/components/discord-link";
 import { requireWorkspace } from "@/lib/session";
 
 const sources = [
@@ -15,14 +13,13 @@ const sources = [
 export const metadata = { title: "Connections" };
 
 export default async function ConnectionsPage() {
-  const { workspace } = await requireWorkspace();
-  const discord = await getDiscordConnection(workspace.id);
+  await requireWorkspace();
 
   return (
     <div className="grid gap-5">
       <PageHeader
         title="Connections"
-        description="Manage the signal sources and delivery channel that are available in Evee today."
+        description="Manage the external signal sources that feed your web workspace."
       />
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
@@ -50,18 +47,25 @@ export default async function ConnectionsPage() {
         <section className="overflow-hidden rounded-[10px] border bg-[var(--surface)]">
           <div className="flex items-center gap-3 border-b px-4 py-3.5">
             <span className="grid size-8 place-items-center rounded-[8px] bg-[var(--accent-soft)] text-[var(--accent)]">
-              <DiscordLogo size={17} weight="fill" />
+              <Browser size={17} weight="fill" />
             </span>
             <div>
-              <h2 className="text-xs font-semibold">Discord companion</h2>
-              <p className="mt-0.5 text-[11px] text-[var(--text-faint)]">Alerts, digests, feedback, and quick actions</p>
+              <h2 className="text-xs font-semibold">Web workspace</h2>
+              <p className="mt-0.5 text-[11px] text-[var(--text-faint)]">Your primary review and action surface</p>
             </div>
           </div>
           <div className="p-4">
-            <p className="mb-4 text-[12px] leading-5 text-[var(--text-muted)]">
-              Connect the Discord channel where your team should receive qualified opportunities, digests, feedback controls, and quick actions.
+            <p className="text-[12px] leading-5 text-[var(--text-muted)]">
+              Qualified opportunities now stay inside Evee. Review evidence and drafts in the opportunity queue, then use the copilot for research and focused actions.
             </p>
-            <DiscordLink initiallyConnected={Boolean(discord)} username={discord?.discordUsername} />
+            <div className="mt-4 grid gap-2">
+              <Link href="/dashboard/opportunities" className="group flex items-center gap-3 rounded-[8px] border px-3 py-3 hover:bg-[var(--surface-subtle)]">
+                <Target size={15} className="text-[var(--accent)]" /><span className="flex-1 text-[11px] font-semibold">Open opportunity queue</span><ArrowRight size={12} className="text-[var(--text-faint)] transition-transform group-hover:translate-x-0.5" />
+              </Link>
+              <Link href="/dashboard/agents" className="group flex items-center gap-3 rounded-[8px] border px-3 py-3 hover:bg-[var(--surface-subtle)]">
+                <Robot size={15} className="text-[var(--accent)]" /><span className="flex-1 text-[11px] font-semibold">Open web copilot</span><ArrowRight size={12} className="text-[var(--text-faint)] transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </div>
           </div>
         </section>
       </div>

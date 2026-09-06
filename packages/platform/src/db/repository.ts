@@ -1,7 +1,7 @@
-import { and, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, lt, or, sql } from "drizzle-orm";
 import type { Candidate, FeedbackValue, OpportunityAnalysis, Profile, ProfileInput, StoredOpportunity } from "../domain/types";
 import { db } from "./client";
-import { conversations, discordConnections, feedback, monitorRuns, opportunities, profiles, scheduledRunClaims, sources, userDigests, users } from "./schema";
+import { conversations, feedback, monitorRuns, opportunities, profiles, scheduledRunClaims, sources, users } from "./schema";
 
 const now = () => Date.now();
 const id = () => crypto.randomUUID();
@@ -9,40 +9,23 @@ const id = () => crypto.randomUUID();
 export type UserRow = typeof users.$inferSelect;
 export type SourceRow = typeof sources.$inferSelect;
 
-export async function getUserForDiscordInteraction(input: {
-  discordUserId: string;
-  discordGuildId: string;
-  discordChannelId: string;
-}): Promise<UserRow | undefined> {
-  const linked = await db.select({ user: users })
-    .from(discordConnections)
-    .innerJoin(users, eq(discordConnections.userId, users.id))
-    .where(and(
-      eq(discordConnections.discordUserId, input.discordUserId),
-      eq(discordConnections.discordGuildId, input.discordGuildId),
-      eq(discordConnections.discordChannelId, input.discordChannelId),
-    ))
-    .limit(1);
-  return linked[0]?.user;
-}
-
 export async function getUser(userId: string) {
   return db.query.users.findFirst({ where: eq(users.id, userId) });
 }
 
-export async function listActiveUsers() {
+export async function listAutomatedUsers() {
   return db.select({ user: users }).from(users)
-    .innerJoin(discordConnections, eq(discordConnections.userId, users.id))
+    .innerJoin(profiles, eq(profiles.userId, users.id))
     .where(eq(users.alertsEnabled, true))
     .then((rows) => rows.map((row) => row.user));
 }
 
 /**
  * Atomically claim a scheduled unit of work. The composite key prevents a
- * deploy overlap or scheduler replay from scanning/notifying the same user in
+ * deploy overlap or scheduler replay from scanning the same user in
  * the same time bucket twice.
  */
-export async function claimScheduledRun(kind: "monitor" | "digest", userId: string, bucket: number) {
+export async function claimScheduledRun(kind: "monitor", userId: string, bucket: number) {
   const inserted = await db.insert(scheduledRunClaims)
     .values({ kind, userId, bucket, claimedAt: now() })
     .onConflictDoNothing()
@@ -50,7 +33,7 @@ export async function claimScheduledRun(kind: "monitor" | "digest", userId: stri
   return inserted.length === 1;
 }
 
-export async function releaseScheduledRun(kind: "monitor" | "digest", userId: string, bucket: number) {
+export async function releaseScheduledRun(kind: "monitor", userId: string, bucket: number) {
   await db.delete(scheduledRunClaims).where(and(
     eq(scheduledRunClaims.kind, kind),
     eq(scheduledRunClaims.userId, userId),
@@ -226,11 +209,17 @@ export async function getOpportunity(opportunityId: string): Promise<StoredOppor
   return row ? storedOpportunity(row.opportunities, row.conversations) : undefined;
 }
 
-export async function getUnalertedOpportunities(userId: string, minScore: number, limit = 10) {
+export async function listNewOpportunities(userId: string, minScore: number, limit = 10) {
   const rows = await db.select().from(opportunities).innerJoin(conversations, eq(opportunities.conversationId, conversations.id))
-    .where(and(eq(opportunities.userId, userId), eq(opportunities.relevant, true), gt(opportunities.score, minScore - 1), isNull(opportunities.alertedAt)))
+    .where(and(eq(opportunities.userId, userId), eq(opportunities.relevant, true), gt(opportunities.score, minScore - 1), eq(opportunities.status, "new")))
     .orderBy(desc(opportunities.score), desc(opportunities.createdAt)).limit(limit);
   return rows.map((row) => storedOpportunity(row.opportunities, row.conversations));
+}
+
+export async function countNewOpportunities(userId: string, minScore: number) {
+  const rows = await db.select({ total: sql<number>`count(*)` }).from(opportunities)
+    .where(and(eq(opportunities.userId, userId), eq(opportunities.relevant, true), gt(opportunities.score, minScore - 1), eq(opportunities.status, "new")));
+  return Number(rows[0]?.total ?? 0);
 }
 
 export async function listOpportunitiesForUser(userId: string, limit = 50) {
@@ -251,10 +240,6 @@ export async function listOpportunityAnalyticsForUser(userId: string, limit = 50
     .where(eq(opportunities.userId, userId))
     .orderBy(desc(opportunities.createdAt), desc(opportunities.score))
     .limit(limit);
-}
-
-export async function markAlerted(opportunityId: string) {
-  await db.update(opportunities).set({ alertedAt: now(), status: "sent", updatedAt: now() }).where(eq(opportunities.id, opportunityId));
 }
 
 export async function updateOpportunity(
@@ -285,21 +270,6 @@ export async function getRecentFeedback(userId: string, limit = 20) {
     .innerJoin(opportunities, eq(feedback.opportunityId, opportunities.id))
     .innerJoin(conversations, eq(opportunities.conversationId, conversations.id))
     .where(eq(feedback.userId, userId)).orderBy(desc(feedback.createdAt)).limit(limit);
-}
-
-export async function listDigestOpportunities(userId: string, since: number, limit = 8) {
-  const alreadySent = db.select({ id: userDigests.opportunityId }).from(userDigests).where(eq(userDigests.userId, userId));
-  const rows = await db.select().from(opportunities).innerJoin(conversations, eq(opportunities.conversationId, conversations.id))
-    .where(and(eq(opportunities.userId, userId), eq(opportunities.relevant, true), gt(opportunities.createdAt, since), sql`${opportunities.id} not in ${alreadySent}`))
-    .orderBy(desc(opportunities.score)).limit(limit);
-  return rows.map((row) => storedOpportunity(row.opportunities, row.conversations));
-}
-
-export async function markDigestSent(userId: string, opportunityIds: string[]) {
-  if (!opportunityIds.length) return;
-  const timestamp = now();
-  await db.insert(userDigests).values(opportunityIds.map((opportunityId) => ({ userId, opportunityId, sentAt: timestamp }))).onConflictDoNothing();
-  await updateUserPreferences(userId, { lastDigestAt: timestamp });
 }
 
 export async function beginMonitorRun(userId: string) {

@@ -22,15 +22,15 @@ type CopilotCommand = {
 const commands: readonly CopilotCommand[] = [
   { name: "/scan", description: "Scan connected sources now" },
   { name: "/digest", description: "Show the latest opportunity digest" },
-  { name: "/pause", description: "Pause monitoring alerts" },
-  { name: "/resume", description: "Resume monitoring alerts" },
+  { name: "/pause", description: "Pause automated scans" },
+  { name: "/resume", description: "Resume automated scans" },
 ] as const;
 
 const quickActions = [
   { label: "Scan now", command: "/scan", icon: Crosshair },
   { label: "View digest", command: "/digest", icon: NewspaperClipping },
-  { label: "Pause alerts", command: "/pause", icon: PauseCircle },
-  { label: "Resume alerts", command: "/resume", icon: PlayCircle },
+  { label: "Pause scans", command: "/pause", icon: PauseCircle },
+  { label: "Resume scans", command: "/resume", icon: PlayCircle },
 ] as const;
 
 type ComposerProps = {
@@ -236,7 +236,7 @@ export function AgentChat() {
           <div className="mb-7 text-center">
             <span className="mx-auto grid size-11 place-items-center rounded-[13px] bg-[var(--accent-soft)] text-[var(--accent)]"><Robot size={22} weight="fill" /></span>
             <h1 className="mt-4 text-2xl font-semibold tracking-[-0.045em]">Ask Evee</h1>
-            <p className="mx-auto mt-2 max-w-md text-[12px] leading-5 text-[var(--text-muted)]">Research demand, manage monitors, review opportunities, and control alerts from one conversation.</p>
+            <p className="mx-auto mt-2 max-w-md text-[12px] leading-5 text-[var(--text-muted)]">Research demand, manage monitors, review opportunities, and control automation from one conversation.</p>
           </div>
           {composer}
           <div className="mt-4 flex flex-wrap justify-center gap-2">

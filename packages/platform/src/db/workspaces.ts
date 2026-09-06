@@ -1,5 +1,4 @@
-import { and, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
-import { env } from "../config/env";
+import { and, desc, eq, gt, sql } from "drizzle-orm";
 import { db } from "./client";
 import {
   agentConfigs,
@@ -10,9 +9,6 @@ import {
   profiles,
   sources,
   subscriptions,
-  discordConnections,
-  discordLinkCodes,
-  userDigests,
   users,
   workspaceMembers,
   workspaces,
@@ -54,8 +50,8 @@ export async function ensureWorkspaceForAuthUser(authUser: { id: string; name: s
     id: runtimeUserId,
     workspaceId,
     authUserId: authUser.id,
-    discordUserId: `web:${authUser.id}`,
-    discordChannelId: `web:${authUser.id}`,
+    legacyIdentityKey: `web:${authUser.id}`,
+    legacyDestinationKey: `web:${authUser.id}`,
     firstName: authUser.name,
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -65,7 +61,7 @@ export async function ensureWorkspaceForAuthUser(authUser: { id: string; name: s
     id: id(), workspaceId, status: "trialing", plan: "starter", createdAt: timestamp, updatedAt: timestamp,
   }).onConflictDoNothing();
 
-  const integrationTypes = ["reddit", "github", "hackernews", "rss", "discord", "slack", "email", "x"] as const;
+  const integrationTypes = ["reddit", "github", "hackernews", "rss", "slack", "email", "x"] as const;
   await db.insert(integrations).values(integrationTypes.map((type) => ({
     id: id(),
     workspaceId,
@@ -129,102 +125,4 @@ export async function listWorkspaceAgents(workspaceId: string) {
 
 export async function getWorkspaceSubscription(workspaceId: string) {
   return db.query.subscriptions.findFirst({ where: eq(subscriptions.workspaceId, workspaceId) });
-}
-
-export async function getDiscordConnection(workspaceId: string) {
-  return db.query.discordConnections.findFirst({ where: eq(discordConnections.workspaceId, workspaceId) });
-}
-
-const linkAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-function linkSecret() {
-  const secret = env.BETTER_AUTH_SECRET;
-  if (!secret || secret.length < 24) throw new Error("BETTER_AUTH_SECRET must be at least 24 characters.");
-  return secret;
-}
-
-async function hashLinkCode(code: string) {
-  const bytes = new TextEncoder().encode(`${linkSecret()}:${code.trim().toUpperCase()}`);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-export async function createDiscordLinkCode(workspaceId: string, authUserId: string) {
-  const timestamp = now();
-  await db.update(discordLinkCodes).set({ consumedAt: timestamp })
-    .where(and(eq(discordLinkCodes.workspaceId, workspaceId), isNull(discordLinkCodes.consumedAt)));
-  const random = crypto.getRandomValues(new Uint8Array(8));
-  const code = Array.from(random, (value) => linkAlphabet[value % linkAlphabet.length]!).join("");
-  const expiresAt = timestamp + 10 * 60 * 1_000;
-  await db.insert(discordLinkCodes).values({
-    id: id(), workspaceId, authUserId, codeHash: await hashLinkCode(code), expiresAt, createdAt: timestamp,
-  });
-  return { code, expiresAt };
-}
-
-export async function consumeDiscordLinkCode(input: {
-  code: string;
-  discordUserId: string;
-  discordGuildId: string;
-  discordChannelId: string;
-  discordUsername?: string;
-  firstName?: string;
-}) {
-  const codeHash = await hashLinkCode(input.code);
-  return db.transaction(async (tx) => {
-    const rows = await tx.select().from(discordLinkCodes)
-      .where(and(eq(discordLinkCodes.codeHash, codeHash), isNull(discordLinkCodes.consumedAt)))
-      .limit(1);
-    const link = rows[0];
-    if (!link || link.expiresAt <= now()) throw new Error("That link code is invalid or expired.");
-
-    const existing = await tx.select().from(discordConnections)
-      .where(eq(discordConnections.discordUserId, input.discordUserId)).limit(1);
-    if (existing[0] && existing[0].workspaceId !== link.workspaceId) {
-      throw new Error("This Discord account is already linked to another workspace.");
-    }
-
-    const runtime = await tx.select().from(users).where(eq(users.workspaceId, link.workspaceId)).limit(1);
-    const runtimeUser = runtime[0];
-    if (!runtimeUser) throw new Error("The workspace is not ready yet.");
-    const timestamp = now();
-    const claimed = await tx.update(discordLinkCodes).set({ consumedAt: timestamp })
-      .where(and(eq(discordLinkCodes.id, link.id), isNull(discordLinkCodes.consumedAt)));
-    if (claimed.rowsAffected !== 1) throw new Error("That link code has already been used.");
-
-    await tx.update(users).set({
-      discordUserId: input.discordUserId,
-      discordChannelId: input.discordChannelId,
-      firstName: input.firstName ?? runtimeUser.firstName,
-      username: input.discordUsername ?? runtimeUser.username,
-      updatedAt: timestamp,
-    }).where(eq(users.id, runtimeUser.id));
-
-    await tx.insert(discordConnections).values({
-      id: existing[0]?.id ?? id(),
-      workspaceId: link.workspaceId,
-      userId: runtimeUser.id,
-      authUserId: link.authUserId,
-      discordUserId: input.discordUserId,
-      discordGuildId: input.discordGuildId,
-      discordChannelId: input.discordChannelId,
-      discordUsername: input.discordUsername,
-      firstName: input.firstName,
-      linkedAt: existing[0]?.linkedAt ?? timestamp,
-      updatedAt: timestamp,
-    }).onConflictDoUpdate({
-      target: discordConnections.workspaceId,
-      set: {
-        discordUserId: input.discordUserId,
-        discordGuildId: input.discordGuildId,
-        discordChannelId: input.discordChannelId,
-        discordUsername: input.discordUsername,
-        firstName: input.firstName,
-        updatedAt: timestamp,
-      },
-    });
-    await tx.update(integrations).set({ status: "connected", externalAccountId: input.discordGuildId, updatedAt: timestamp })
-      .where(and(eq(integrations.workspaceId, link.workspaceId), eq(integrations.type, "discord")));
-    return { workspaceId: link.workspaceId, userId: runtimeUser.id };
-  });
 }

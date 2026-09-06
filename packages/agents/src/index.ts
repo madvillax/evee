@@ -6,9 +6,9 @@ import {
   eveeCoordinatorAgent,
   intelligenceSpecialist,
   monitoringSpecialist,
-  notificationSpecialist,
+  automationSpecialist,
 } from "./agents";
-import { dailyDigestWorkflow, monitorAllWorkflow } from "./workflows";
+import { monitorAllWorkflow } from "./workflows";
 
 // Only the dedicated worker may initialize Mastra's tables. Web requests use
 // the same storage with implicit initialization disabled, so a user request
@@ -24,12 +24,11 @@ export const mastra = new Mastra({
     "evee-gtm-copilot": eveeCoordinatorAgent,
     "evee-intelligence-specialist": intelligenceSpecialist,
     "evee-monitoring-specialist": monitoringSpecialist,
-    "evee-notification-specialist": notificationSpecialist,
+    "evee-automation-specialist": automationSpecialist,
     "evee-drafting-specialist": draftingSpecialist,
   },
   workflows: {
     "schedule-opportunity-monitoring": monitorAllWorkflow,
-    "schedule-daily-discord-digests": dailyDigestWorkflow,
   },
   storage: mastraStorage,
   // A web server only serves requests; it never runs schedules. The standalone

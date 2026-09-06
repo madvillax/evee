@@ -12,11 +12,12 @@
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "latest",
-    "@evee/platform": "workspace:*",
+    "@evee/platform": "*",
     "better-auth": "latest",
     "drizzle-orm": "latest"
   },
   "devDependencies": {
+    "@types/node": "latest",
     "typescript": "^5.9.3"
   }
 }

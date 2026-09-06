@@ -2,7 +2,7 @@ import { createTool } from "@mastra/core/tools";
 import {
   createMonitor,
   getProfile,
-  getUnalertedOpportunities,
+  listNewOpportunities,
   getUser,
   listOpportunitiesForUser,
   updateUserPreferences,
@@ -41,14 +41,14 @@ export const findOpportunitiesTool = createTool({
     const userId = getRuntimeUserId(context);
     const result = await monitorUser(userId);
     const user = await getUser(userId);
-    const opportunities = await getUnalertedOpportunities(userId, user?.minScore ?? 65, 5);
+    const opportunities = await listNewOpportunities(userId, user?.minScore ?? 65, 5);
     return { result, opportunities };
   },
 });
 
 export const getLatestDigestTool = createTool({
   id: "get-latest-digest",
-  description: "Read the workspace's latest qualified opportunities as a concise digest. This does not mark the Discord digest as sent.",
+  description: "Read the workspace's latest qualified opportunities as a concise web digest without changing their review state.",
   inputSchema: z.object({}),
   requestContextSchema: eveeRequestContextSchema,
   execute: async (_input, context) => {
@@ -83,50 +83,36 @@ export const getProductProfileTool = createTool({
   execute: async (_input, context) => getProfile(getRuntimeUserId(context)) ?? { error: "No saved product profile." },
 });
 
-export const manageAlertsTool = createTool({
-  id: "manage-alerts",
-  description: "Pause or resume workspace monitoring alerts after an explicit user request.",
-  inputSchema: z.object({ enabled: z.boolean().describe("True to resume alerts; false to pause alerts.") }),
+export const manageMonitoringTool = createTool({
+  id: "manage-monitoring",
+  description: "Pause or resume automated workspace scans after an explicit user request.",
+  inputSchema: z.object({ enabled: z.boolean().describe("True to resume automated scans; false to pause them.") }),
   requestContextSchema: eveeRequestContextSchema,
   execute: async ({ enabled }, context) => {
     const userId = getRuntimeUserId(context);
     await updateUserPreferences(userId, { alertsEnabled: enabled });
     const user = await getUser(userId);
-    return { alertsEnabled: user?.alertsEnabled ?? enabled };
+    return { monitoringEnabled: user?.alertsEnabled ?? enabled };
   },
 });
 
 export const manageSettingsTool = createTool({
   id: "manage-settings",
-  description: "Read notification settings, or update digest hour, IANA timezone, and minimum opportunity score after an explicit user request. With no values, only read settings.",
+  description: "Read web automation settings, or update the minimum opportunity score after an explicit user request. With no values, only read settings.",
   inputSchema: z.object({
-    digestHour: z.number().int().min(0).max(23).optional(),
-    timezone: z.string().min(1).optional(),
     minScore: z.number().int().min(40).max(100).optional(),
   }),
   requestContextSchema: eveeRequestContextSchema,
   execute: async (input, context) => {
     const userId = getRuntimeUserId(context);
-    if (input.timezone) {
-      try {
-        new Intl.DateTimeFormat("en", { timeZone: input.timezone }).format();
-      } catch {
-        throw new Error("Use a valid IANA timezone such as Asia/Kolkata or America/New_York.");
-      }
-    }
-
     const preferences = {
-      ...(input.digestHour === undefined ? {} : { digestHour: input.digestHour }),
-      ...(input.timezone === undefined ? {} : { timezone: input.timezone }),
       ...(input.minScore === undefined ? {} : { minScore: input.minScore }),
     };
     if (Object.keys(preferences).length) await updateUserPreferences(userId, preferences);
     const user = await getUser(userId);
     if (!user) throw new Error("Workspace settings could not be loaded.");
     return {
-      alertsEnabled: user.alertsEnabled,
-      digestHour: user.digestHour,
-      timezone: user.timezone,
+      monitoringEnabled: user.alertsEnabled,
       minScore: user.minScore,
     };
   },

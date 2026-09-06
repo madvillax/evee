@@ -67,8 +67,10 @@ export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").references(() => workspaces.id, { onDelete: "cascade" }),
   authUserId: text("auth_user_id").references(() => authUsers.id, { onDelete: "set null" }),
-  discordUserId: text("discord_user_id").notNull().unique(),
-  discordChannelId: text("discord_channel_id").notNull(),
+  // These physical columns are retained only until the follow-up compatibility
+  // migration rebuilds this legacy table. New web users receive opaque values.
+  legacyIdentityKey: text("discord_user_id").notNull().unique(),
+  legacyDestinationKey: text("discord_channel_id").notNull(),
   firstName: text("first_name"),
   username: text("username"),
   timezone: text("timezone").notNull().default("UTC"),
@@ -82,6 +84,8 @@ export const users = sqliteTable("users", {
   updatedAt: integer("updated_at").notNull(),
 }, (table) => [uniqueIndex("users_workspace_id_unique").on(table.workspaceId)]);
 
+// Legacy channel tables stay in the schema for one compatibility window so a
+// deployment does not destroy previously linked account data without a backup.
 export const discordConnections = sqliteTable("discord_connections", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
@@ -109,7 +113,7 @@ export const discordLinkCodes = sqliteTable("discord_link_codes", {
 export const integrations = sqliteTable("integrations", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
-  type: text("type", { enum: ["reddit", "github", "hackernews", "rss", "discord", "slack", "email", "x"] }).notNull(),
+  type: text("type", { enum: ["reddit", "github", "hackernews", "rss", "slack", "email", "x"] }).notNull(),
   status: text("status", { enum: ["connected", "needs_attention", "disconnected"] }).notNull().default("disconnected"),
   displayName: text("display_name").notNull(),
   externalAccountId: text("external_account_id"),

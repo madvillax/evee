@@ -18,30 +18,20 @@ const databaseUrl = z.preprocess(
   z.string().default("file:local.db"),
 );
 
-const optionalPort = z.preprocess(
-  (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
-  z.coerce.number().int().positive().default(3000),
-);
-
 const geminiModel = z.preprocess(
   (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
   z.string().default("gemini-2.5-flash"),
 );
 
 const schema = z.object({
-  DISCORD_APPLICATION_ID: optionalString,
-  DISCORD_PUBLIC_KEY: optionalString,
-  DISCORD_BOT_TOKEN: optionalString,
-  DISCORD_TEST_GUILD_ID: optionalString,
   BETTER_AUTH_SECRET: optionalString,
-  PORT: optionalPort,
   GEMINI_API_KEY: optionalString,
   GEMINI_MODEL: geminiModel,
   TURSO_DATABASE_URL: databaseUrl,
   TURSO_AUTH_TOKEN: optionalString,
   EVEE_REPO_ROOT: optionalString,
   GITHUB_TOKEN: optionalString,
-  REDDIT_USER_AGENT: z.string().default("evee/0.2 (opportunity monitoring bot)"),
+  REDDIT_USER_AGENT: z.string().default("evee/0.3 (web opportunity monitoring)"),
   DEFAULT_RSS_FEEDS: z.string().default(""),
 });
 

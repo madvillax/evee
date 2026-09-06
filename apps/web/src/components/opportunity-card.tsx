@@ -2,17 +2,20 @@
 
 import type { StoredOpportunity } from "@evee/platform/domain/types";
 import { ArrowSquareOut, Check, Copy, ThumbsDown, ThumbsUp } from "@phosphor-icons/react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { HorizontalMeter } from "@/components/metric-visuals";
 
 export function OpportunityCard({ opportunity }: { opportunity: StoredOpportunity }) {
+  const router = useRouter();
   const [status, setStatus] = useState(opportunity.status);
   const [copied, setCopied] = useState(false);
 
   async function feedback(value: "good" | "bad" | "replied") {
-    const response = await fetch("/api/feedback", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ opportunityId: opportunity.id, value }) });
+    const response = await fetch("/api/backend/feedback", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ opportunityId: opportunity.id, value }) });
     if (!response.ok) return;
     setStatus(value === "good" ? "saved" : value === "bad" ? "dismissed" : "replied");
+    router.refresh();
   }
 
   async function copyDraft() {

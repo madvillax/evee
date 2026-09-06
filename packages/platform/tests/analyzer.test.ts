@@ -1,4 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import assert from "node:assert/strict";
+import { describe, test } from "node:test";
 import { candidatePrefilter, heuristicAnalysis } from "../src/ai/analyzer";
 import type { Candidate, Profile } from "../src/domain/types";
 
@@ -31,12 +32,12 @@ const candidate: Candidate = {
 
 describe("opportunity heuristic", () => {
   test("prioritizes explicit solution-seeking with strong product fit", () => {
-    expect(candidatePrefilter(candidate, profile)).toBeGreaterThan(5);
+    assert.ok(candidatePrefilter(candidate, profile) > 5);
     const result = heuristicAnalysis(candidate, profile);
-    expect(result.relevant).toBe(true);
-    expect(result.score).toBeGreaterThanOrEqual(65);
-    expect(result.signals.some((signal) => signal.includes("Zendesk"))).toBe(true);
-    expect(result.replyDraft).toContain("I work on QueueFox");
+    assert.equal(result.relevant, true);
+    assert.ok(result.score >= 65);
+    assert.equal(result.signals.some((signal) => signal.includes("Zendesk")), true);
+    assert.match(result.replyDraft, /I work on QueueFox/);
   });
 
   test("does not promote on a weak announcement", () => {
@@ -46,13 +47,13 @@ describe("opportunity heuristic", () => {
       title: "Show HN: We launched a drawing app",
       body: "Here is our launch announcement.",
     }, profile);
-    expect(result.relevant).toBe(false);
-    expect(result.replyDraft).toBe("");
+    assert.equal(result.relevant, false);
+    assert.equal(result.replyDraft, "");
   });
 
   test("score equals its documented components", () => {
     const result = heuristicAnalysis(candidate, profile);
-    expect(result.score).toBe(
+    assert.equal(result.score,
       result.intentScore + result.fitScore + result.urgencyScore + result.specificityScore + result.replySafetyScore,
     );
   });

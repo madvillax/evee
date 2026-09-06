@@ -1,6 +1,6 @@
 import { ArrowRight, ChartLineUp, Crosshair, PaperPlaneTilt, Target } from "@phosphor-icons/react/dist/ssr";
 import { getProfile, listOpportunitiesForUser } from "@evee/platform/db/repository";
-import { getDiscordConnection, getWorkspaceDashboard } from "@evee/platform/db/workspaces";
+import { getWorkspaceDashboard } from "@evee/platform/db/workspaces";
 import Link from "next/link";
 import { HorizontalMeter, MiniLine, ScoreRing } from "@/components/metric-visuals";
 import { PageHeader } from "@/components/page-header";
@@ -58,19 +58,18 @@ function ScanActivity({ runs }: { runs: Array<{ id: string; startedAt: number; c
 }
 
 export default async function DashboardPage() {
-  const { runtimeUser, workspace } = await requireWorkspace();
-  const [stats, opportunities, profile, discord] = await Promise.all([
+  const { runtimeUser } = await requireWorkspace();
+  const [stats, opportunities, profile] = await Promise.all([
     getWorkspaceDashboard(runtimeUser.id),
     listOpportunitiesForUser(runtimeUser.id, 5),
     getProfile(runtimeUser.id),
-    getDiscordConnection(workspace.id),
   ]);
   const runValues = [...stats.recentRuns].reverse();
-  const readiness = [Boolean(profile), stats.activeMonitors > 0, Boolean(discord)].filter(Boolean).length;
+  const readiness = [Boolean(profile), stats.activeMonitors > 0].filter(Boolean).length;
 
   return (
     <div className="grid gap-5">
-      <PageHeader title="Overview" description="Live GTM signal across monitors, opportunities, and connected delivery channels." actions={
+      <PageHeader title="Overview" description="Live GTM signal across automated monitors and your web opportunity queue." actions={
         <Link href="/dashboard/agents" className="flex h-8 items-center gap-2 rounded-[7px] bg-[var(--accent)] px-3 text-[12px] font-semibold text-[var(--accent-foreground)] hover:bg-[var(--accent-hover)] active:translate-y-px">Ask copilot <ArrowRight size={13} /></Link>
       } />
 
@@ -84,12 +83,11 @@ export default async function DashboardPage() {
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.65fr)]">
         <ScanActivity runs={stats.recentRuns} />
         <section className="rounded-[10px] border bg-[var(--surface)]">
-          <div className="flex items-start justify-between border-b px-4 py-3.5"><div><h2 className="text-xs font-semibold">Workspace readiness</h2><p className="mt-0.5 text-[11px] text-[var(--text-faint)]">Required signal foundations</p></div><p className="font-mono text-2xl leading-none tracking-[-0.06em]">{readiness}<span className="text-sm text-[var(--text-faint)]">/3</span></p></div>
+          <div className="flex items-start justify-between border-b px-4 py-3.5"><div><h2 className="text-xs font-semibold">Workspace readiness</h2><p className="mt-0.5 text-[11px] text-[var(--text-faint)]">Required signal foundations</p></div><p className="font-mono text-2xl leading-none tracking-[-0.06em]">{readiness}<span className="text-sm text-[var(--text-faint)]">/2</span></p></div>
           <div className="divide-y">
             {[
               { index: "01", label: "Business profile", ready: Boolean(profile), href: "/dashboard/business" },
               { index: "02", label: "Source monitors", ready: stats.activeMonitors > 0, href: "/dashboard/monitors" },
-              { index: "03", label: "Discord companion", ready: Boolean(discord), href: "/dashboard/integrations" },
             ].map((item) => (
               <Link href={item.href} key={item.label} className="group flex items-center gap-3 px-4 py-3.5 hover:bg-[var(--surface-subtle)]">
                 <span className="font-mono text-[10px] text-[var(--text-faint)]">{item.index}</span><span className="flex-1 text-xs font-medium">{item.label}</span><span className={`text-[10px] font-semibold ${item.ready ? "text-[var(--success)]" : "text-[var(--warning)]"}`}>{item.ready ? "Ready" : "Set up"}</span><ArrowRight size={12} className="text-[var(--text-faint)] transition-transform group-hover:translate-x-0.5" />

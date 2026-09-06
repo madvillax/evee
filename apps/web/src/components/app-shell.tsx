@@ -55,11 +55,12 @@ function isActive(item: NavItem, pathname: string) {
   return pathname.startsWith(item.href);
 }
 
-export function AppShell({ children, workspaceName, userName, userEmail }: {
+export function AppShell({ children, workspaceName, userName, userEmail, newOpportunityCount }: {
   children: React.ReactNode;
   workspaceName: string;
   userName: string;
   userEmail: string;
+  newOpportunityCount: number;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -108,7 +109,12 @@ export function AppShell({ children, workspaceName, userName, userEmail }: {
                 className={`group flex h-10 items-center gap-3 rounded-[10px] px-3 text-xs font-medium active:scale-[0.985] ${active ? "bg-[var(--accent-soft)] text-[var(--text)]" : "text-[var(--text-muted)] hover:bg-[var(--surface-subtle)] hover:text-[var(--text)]"}`}
               >
                 <item.icon size={16} weight={active ? "fill" : "regular"} className={active ? "text-[var(--accent)]" : "text-[var(--text-faint)] group-hover:text-[var(--text-muted)]"} />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {item.href === "/dashboard/opportunities" && newOpportunityCount > 0 ? (
+                  <span className="min-w-5 rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-center font-mono text-[9px] font-semibold text-[var(--accent-foreground)]" aria-label={`${newOpportunityCount} new opportunities`}>
+                    {newOpportunityCount > 99 ? "99+" : newOpportunityCount}
+                  </span>
+                ) : null}
               </Link>
             );
           })}

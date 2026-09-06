@@ -4,16 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "MASTRA_WORKER=true bun --watch src/index.ts",
-    "start": "MASTRA_WORKER=true bun src/index.ts",
+    "dev": "MASTRA_WORKER=true tsx watch src/index.ts",
+    "start": "MASTRA_WORKER=true tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit"
   },
   "dependencies": {
-    "@evee/agents": "workspace:*"
+    "@evee/agents": "*"
   },
   "devDependencies": {
-    "@types/bun": "latest",
+    "@types/node": "latest",
+    "tsx": "latest",
     "typescript": "^5.9.3"
   }
 }

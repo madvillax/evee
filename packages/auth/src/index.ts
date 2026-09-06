@@ -37,6 +37,7 @@ const authBaseURL =
 const trustedOrigins = [
   authBaseURL,
   vercelDeploymentURL,
+  ...(process.env.WEB_ORIGINS?.split(",") ?? []),
   ...(process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") ?? []),
 ]
   .map((origin) => origin?.trim())

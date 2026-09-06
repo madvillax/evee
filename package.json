@@ -3,28 +3,29 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "packageManager": "bun@1.3.14",
+  "packageManager": "npm@11.19.0",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo dev --parallel",
-    "dev:web": "bun run --cwd apps/web dev",
-    "dev:bot": "bun run --cwd apps/bot dev",
-    "dev:worker": "bun run --cwd apps/worker dev",
-    "bot": "bun run --cwd apps/bot start",
-    "worker": "bun run --cwd apps/worker start",
-    "start": "bun run bot",
+    "dev": "turbo dev --parallel --filter=@evee/web --filter=@evee/api --filter=@evee/worker",
+    "dev:web": "npm run dev --workspace=@evee/web",
+    "dev:api": "npm run dev --workspace=@evee/api",
+    "dev:worker": "npm run dev --workspace=@evee/worker",
+    "start": "npm run start --workspace=@evee/api",
+    "start:web": "npm run start --workspace=@evee/web",
+    "worker": "npm run start --workspace=@evee/worker",
     "build": "turbo build",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "bun packages/platform/src/db/migrate.ts"
+    "db:migrate": "tsx packages/platform/src/db/migrate.ts"
   },
   "devDependencies": {
-    "@types/bun": "latest",
+    "@types/node": "latest",
     "drizzle-kit": "latest",
+    "tsx": "latest",
     "turbo": "latest",
     "typescript": "^5.9.3"
   }

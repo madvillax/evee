@@ -9,7 +9,7 @@ import {
   findOpportunitiesTool,
   getLatestDigestTool,
   getProductProfileTool,
-  manageAlertsTool,
+  manageMonitoringTool,
   manageSettingsTool,
   recordFeedbackTool,
   rewriteOpportunityTool,
@@ -44,12 +44,12 @@ export const monitoringSpecialist = new Agent({
   maxRetries: 1,
 });
 
-export const notificationSpecialist = new Agent({
-  id: "evee-notification-specialist",
-  name: "Evee Notification Specialist",
-  instructions: `You manage alert and digest preferences. Change a value only after an explicit request, validate what was saved, and confirm the final settings.${safetyBoundaries}`,
+export const automationSpecialist = new Agent({
+  id: "evee-automation-specialist",
+  name: "Evee Automation Specialist",
+  instructions: `You manage web monitoring and scoring preferences. Change a value only after an explicit request, validate what was saved, and confirm the final settings.${safetyBoundaries}`,
   model,
-  tools: { manageAlerts: manageAlertsTool, manageSettings: manageSettingsTool },
+  tools: { manageMonitoring: manageMonitoringTool, manageSettings: manageSettingsTool },
   maxRetries: 1,
 });
 
@@ -89,10 +89,10 @@ const delegateToMonitoring = delegateToSpecialist(
   "Ask the monitoring specialist to create a monitor or run a scan.",
   monitoringSpecialist,
 );
-const delegateToNotifications = delegateToSpecialist(
-  "delegate-to-notification-specialist",
-  "Ask the notification specialist to read or explicitly change alert and digest settings.",
-  notificationSpecialist,
+const delegateToAutomation = delegateToSpecialist(
+  "delegate-to-automation-specialist",
+  "Ask the automation specialist to read or explicitly change web monitoring and scoring settings.",
+  automationSpecialist,
 );
 const delegateToDrafting = delegateToSpecialist(
   "delegate-to-drafting-specialist",
@@ -103,24 +103,24 @@ const delegateToDrafting = delegateToSpecialist(
 export const eveeCoordinatorAgent = new Agent({
   id: "evee-gtm-copilot",
   name: "Evee GTM Copilot",
-  instructions: `You are Evee's GTM copilot and the coordinator for four tightly scoped specialists. Delegate workspace-data, monitoring, notification-setting, and drafting operations to the appropriate specialist instead of attempting those operations yourself.
+  instructions: `You are Evee's web-first GTM copilot and the coordinator for four tightly scoped specialists. Delegate workspace-data, monitoring, automation-setting, and drafting operations to the appropriate specialist instead of attempting those operations yourself.
 
 Core responsibilities:
 - Help signed-in teams understand demand and decide where a useful human reply can create a real customer conversation.
 - Learn the active workspace's business profile, customers, pains, competitors, exclusions, and preferred writing style before making recommendations.
 - Analyze conversations conservatively. Prefer explicit solution-seeking, switching, purchasing, blocked-workflow, and competitor-alternative signals.
 - Explain why an opportunity is relevant, identify uncertainty, and draft one helpful personalized reply.
-- The web copilot exposes only /scan, /digest, /pause, and /resume; use the matching specialist immediately. Other Discord commands remain channel-specific and should not be presented as web commands.
+- The web copilot exposes /scan, /digest, /pause, and /resume as shortcuts; use the matching specialist immediately.
 
 ${safetyBoundaries}
-- Only change alert or digest settings when the user explicitly asks. Confirm the saved values after a successful change.
+- Only change monitoring or scoring settings when the user explicitly asks. Confirm the saved values after a successful change.
 - Keep answers concise, concrete, and decision-oriented.`,
   model,
   memory: new Memory(),
   tools: {
     delegateToIntelligence,
     delegateToMonitoring,
-    delegateToNotifications,
+    delegateToAutomation,
     delegateToDrafting,
   },
   maxRetries: 1,
