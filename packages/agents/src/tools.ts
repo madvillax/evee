@@ -1,4 +1,4 @@
-import { createTool } from "@mastra/core/tools";
+import { defineTool } from "eve/tools";
 import {
   createMonitor,
   getProfile,
@@ -11,10 +11,9 @@ import { feedbackValueSchema, sourceTypeSchema } from "@evee/platform/domain/typ
 import { recordOpportunityFeedback, rewriteOpportunity } from "@evee/platform/services/feedback";
 import { monitorUser } from "@evee/platform/services/monitor";
 import { z } from "zod";
-import { eveeRequestContextSchema, getRuntimeUserId } from "./context";
+import { getRuntimeUserId } from "./context";
 
-export const createMonitorTool = createTool({
-  id: "create-monitor",
+export const createMonitorTool = defineTool({
   description: "Create a focused workspace monitor after translating the user's natural-language monitoring goal into a source and query configuration.",
   inputSchema: z.object({
     type: sourceTypeSchema,
@@ -23,22 +22,19 @@ export const createMonitorTool = createTool({
     communities: z.array(z.string().min(1)).max(20).default([]),
     exclusions: z.array(z.string().min(1)).max(20).default([]),
   }),
-  requestContextSchema: eveeRequestContextSchema,
   execute: async (input, context) => createMonitor({
-    userId: getRuntimeUserId(context),
+    userId: await getRuntimeUserId(context),
     type: input.type,
     name: input.name,
     config: { query: input.query, communities: input.communities, exclusions: input.exclusions },
   }),
 });
 
-export const findOpportunitiesTool = createTool({
-  id: "find-opportunities",
+export const findOpportunitiesTool = defineTool({
   description: "Scan configured public sources for a user, analyze new conversations, and return the strongest unsent opportunities.",
   inputSchema: z.object({}),
-  requestContextSchema: eveeRequestContextSchema,
   execute: async (_input, context) => {
-    const userId = getRuntimeUserId(context);
+    const userId = await getRuntimeUserId(context);
     const result = await monitorUser(userId);
     const user = await getUser(userId);
     const opportunities = await listNewOpportunities(userId, user?.minScore ?? 65, 5);
@@ -46,13 +42,11 @@ export const findOpportunitiesTool = createTool({
   },
 });
 
-export const getLatestDigestTool = createTool({
-  id: "get-latest-digest",
+export const getLatestDigestTool = defineTool({
   description: "Read the workspace's latest qualified opportunities as a concise web digest without changing their review state.",
   inputSchema: z.object({}),
-  requestContextSchema: eveeRequestContextSchema,
   execute: async (_input, context) => {
-    const userId = getRuntimeUserId(context);
+    const userId = await getRuntimeUserId(context);
     const user = await getUser(userId);
     const minimumScore = user?.minScore ?? 65;
     const opportunities = (await listOpportunitiesForUser(userId, 30))
@@ -75,36 +69,30 @@ export const getLatestDigestTool = createTool({
   },
 });
 
-export const getProductProfileTool = createTool({
-  id: "get-product-profile",
+export const getProductProfileTool = defineTool({
   description: "Read a user's saved product, audience, pain points, competitors, keywords, exclusions, and preferred reply style.",
   inputSchema: z.object({}),
-  requestContextSchema: eveeRequestContextSchema,
-  execute: async (_input, context) => getProfile(getRuntimeUserId(context)) ?? { error: "No saved product profile." },
+  execute: async (_input, context) => (await getProfile(await getRuntimeUserId(context))) ?? { error: "No saved product profile." },
 });
 
-export const manageMonitoringTool = createTool({
-  id: "manage-monitoring",
+export const manageMonitoringTool = defineTool({
   description: "Pause or resume automated workspace scans after an explicit user request.",
   inputSchema: z.object({ enabled: z.boolean().describe("True to resume automated scans; false to pause them.") }),
-  requestContextSchema: eveeRequestContextSchema,
   execute: async ({ enabled }, context) => {
-    const userId = getRuntimeUserId(context);
+    const userId = await getRuntimeUserId(context);
     await updateUserPreferences(userId, { alertsEnabled: enabled });
     const user = await getUser(userId);
     return { monitoringEnabled: user?.alertsEnabled ?? enabled };
   },
 });
 
-export const manageSettingsTool = createTool({
-  id: "manage-settings",
+export const manageSettingsTool = defineTool({
   description: "Read web automation settings, or update the minimum opportunity score after an explicit user request. With no values, only read settings.",
   inputSchema: z.object({
     minScore: z.number().int().min(40).max(100).optional(),
   }),
-  requestContextSchema: eveeRequestContextSchema,
   execute: async (input, context) => {
-    const userId = getRuntimeUserId(context);
+    const userId = await getRuntimeUserId(context);
     const preferences = {
       ...(input.minScore === undefined ? {} : { minScore: input.minScore }),
     };
@@ -118,31 +106,27 @@ export const manageSettingsTool = createTool({
   },
 });
 
-export const recordFeedbackTool = createTool({
-  id: "record-feedback",
+export const recordFeedbackTool = defineTool({
   description: "Record a user's explicit feedback on an opportunity so future scoring and drafts improve.",
   inputSchema: z.object({
     opportunityId: z.string().uuid(),
     value: feedbackValueSchema.exclude(["rewrite"]),
     note: z.string().max(1_000).optional(),
   }),
-  requestContextSchema: eveeRequestContextSchema,
   execute: async ({ opportunityId, value, note }, context) => {
-    await recordOpportunityFeedback(getRuntimeUserId(context), opportunityId, value, note);
+    await recordOpportunityFeedback(await getRuntimeUserId(context), opportunityId, value, note);
     return { saved: true };
   },
 });
 
-export const rewriteOpportunityTool = createTool({
-  id: "rewrite-opportunity",
+export const rewriteOpportunityTool = defineTool({
   description: "Rewrite an opportunity's reply draft with the user's explicit direction, while preserving the saved product profile and disclosure rules.",
   inputSchema: z.object({
     opportunityId: z.string().uuid(),
     instruction: z.string().min(2).max(1_000).optional(),
   }),
-  requestContextSchema: eveeRequestContextSchema,
   execute: async ({ opportunityId, instruction }, context) => {
-    const replyDraft = await rewriteOpportunity(getRuntimeUserId(context), opportunityId, instruction);
+    const replyDraft = await rewriteOpportunity(await getRuntimeUserId(context), opportunityId, instruction);
     return { opportunityId, replyDraft };
   },
 });

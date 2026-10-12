@@ -43,6 +43,13 @@
       "when": 1786106948493,
       "tag": "0005_productive_callisto",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791826701068,
+      "tag": "0006_curved_karen_page",
+      "breakpoints": true
     }
   ]
 }

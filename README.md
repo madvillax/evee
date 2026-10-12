@@ -1,146 +1,120 @@
 # Evee
 
-Evee is a web-first AI GTM workspace. It finds relevant public conversations, explains why they matter, drafts useful replies, and keeps monitoring, review, feedback, and Copilot workflows inside one authenticated web application.
-
-Evee never posts a public reply on a user's behalf.
-
-## Product surfaces
-
-- Next.js web app for business profiles, monitors, opportunities, analytics, settings, and the GTM Copilot
-- Node + Hono API for authentication, Copilot streaming, scan execution, opportunity reads, and feedback writes
-- Node worker for recurring workspace scans
-- Shared Turso data model across the API, web app, and worker
-- Light and dark themes with a responsive application shell
+Evee finds relevant public conversations, explains the evidence, and drafts useful replies for human review. Use the authenticated web workspace or its linked private Telegram bot. Evee never publishes a public reply on your behalf.
 
 ## Stack
 
-| Technology | Purpose |
-| --- | --- |
-| Next.js + React + Tailwind CSS | Web application and design system |
-| Node.js + Hono + TypeScript | Backend HTTP API |
-| npm workspaces + Turborepo | Monorepo dependency and task management |
-| Better Auth | Email/password authentication and sessions |
-| Turso + Drizzle ORM | Multi-tenant application data and migrations |
-| Mastra | Workspace-scoped Copilot agents and scheduled monitoring workflow |
-| Google provider | Direct Gemini access for Mastra |
-| Google Gen AI SDK + Zod | Structured opportunity analysis in the monitoring pipeline |
+- Next.js, React, and Tailwind for profiles, monitors, opportunities, settings, and Copilot
+- Node.js and Hono for Better Auth, workspace authorization, scans, feedback, and Copilot streaming
+- [Vercel Eve](https://vercel.com/eve) for durable agent conversations, four specialists, Telegram webhooks, and recurring scans
+- Direct Gemini model access through the AI SDK; Google Gen AI SDK for structured opportunity analysis
+- Turso and Drizzle for application data; npm workspaces and Turborepo
 
-## Monorepo layout
+Mastra has been removed. LangGraph and LangChain are not dependencies. Discord has no active bot, routes, or credentials. Its historical migrations and compatibility tables remain to preserve existing data.
 
-```text
-apps/
-  api/                 Node + Hono backend
-  web/                 Next.js web application
-  worker/              Node process for scheduled monitoring
-packages/
-  agents/              Mastra coordinator, specialists, tools, and workflow
-  auth/                Better Auth configuration
-  platform/            database, collectors, analysis, and services
-drizzle/                generated SQL migrations
-docs/                   architecture and migration notes
-```
+## Setup
 
-## Local setup
-
-Prerequisites:
-
-- Node.js 24 (the repository includes `.node-version`)
-- npm 11+
-- A direct Gemini API key from Google AI Studio
-- A Turso database, or `file:local.db` for local-only development
-
-Install dependencies and create the local environment file:
+Use Node.js 24 and npm 11+. From the repository root:
 
 ```bash
 npm install
 cp .env.example .env
-npm run db:migrate
 ```
 
-Configure the required values:
+Configure `.env`:
 
 ```dotenv
 API_PORT=4000
 API_INTERNAL_URL=http://localhost:4000
 WEB_ORIGINS=http://localhost:3001
-
-BETTER_AUTH_SECRET=replace-with-a-long-random-secret
 BETTER_AUTH_URL=http://localhost:3001
-
-GEMINI_API_KEY=
+BETTER_AUTH_SECRET=replace-with-a-long-random-secret
+GEMINI_API_KEY=your-google-ai-studio-key
 GEMINI_MODEL=gemini-2.5-flash
-
 TURSO_DATABASE_URL=file:local.db
 TURSO_AUTH_TOKEN=
+EVE_PORT=4001
+EVE_INTERNAL_URL=http://localhost:4001
+EVE_SERVICE_SECRET=replace-with-another-long-random-secret
 ```
 
-Generate `BETTER_AUTH_SECRET` with `openssl rand -base64 32`. `BETTER_AUTH_URL` is the public web origin because Next.js proxies `/api/auth/*` to Hono, keeping browser authentication same-origin.
+Generate each secret separately with `openssl rand -base64 32`. The same `EVE_SERVICE_SECRET` must be present in Hono and Eve. It signs short-lived, server-generated workspace credentials; it is never sent to the browser.
 
-## Start the project
-
-Run the complete web-first stack:
+Apply migrations and start:
 
 ```bash
+npm run db:migrate
 npm run dev
 ```
 
-This starts:
+This starts the web app on `http://localhost:3001`, Hono on `http://localhost:4000`, and Eve on `http://localhost:4001`. Create an account and complete your business profile. Use **Scan now** or the Copilot. Collected opportunities stay available in the web queue.
 
-- Web app: [http://localhost:3001](http://localhost:3001)
-- Hono API: [http://localhost:4000/api/health](http://localhost:4000/api/health)
-- Node monitoring worker
+## Telegram bot
 
-You can also run each process separately:
+Create a bot with Telegram's BotFather. Add these values to `.env` and the Eve production environment:
 
-```bash
-npm run dev:web
-npm run dev:api
-npm run dev:worker
+```dotenv
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_BOT_USERNAME=
+TELEGRAM_WEBHOOK_SECRET_TOKEN=
+EVE_PUBLIC_URL=https://your-agent-service.example.com
 ```
 
-Create an account, complete the business profile, review the default monitors, and use **Scan now** on the Monitors page. Qualified results appear in the web opportunity queue. The worker repeats enabled scans every twenty minutes when automated scans are enabled.
+`TELEGRAM_BOT_USERNAME` is the bot username without `@`. Generate the webhook secret with `openssl rand -hex 32`. Set `EVE_PUBLIC_URL` to the public HTTPS origin of the **Eve service**. Telegram cannot reach a localhost URL; local testing needs an HTTPS tunnel to port 4001. Keep these variables in Hono and Next.js too, so Connections can report whether the bot is configured.
 
-## API boundary
+With the agent service running and publicly reachable, register the webhook:
 
-The Next.js app proxies these same-origin browser paths to Hono:
+```bash
+npm run telegram:webhook
+```
 
-- `/api/auth/*` → Better Auth on Hono
-- `/api/copilot` → authenticated Copilot stream
-- `/api/backend/opportunities` → workspace-scoped opportunity data
-- `/api/backend/monitors/scan` → on-demand scan
-- `/api/backend/feedback` → opportunity feedback
+The script registers `/eve/v1/telegram` and message updates only. It does not discard pending updates. Registration is explicit so local development does not take over a production bot's webhook.
 
-Hono resolves the Better Auth session and workspace server-side before protected routes run. Clients never choose a runtime user or workspace identifier.
+In Evee, open **Connections → Telegram → Connect Telegram**, open the generated link, and press **Start**. Links expire in ten minutes and can be used once. An owner or admin must create them. The bot supports:
 
-Some dashboard reads and form actions still execute inside Next.js during the migration window. They are listed in [the web-first migration plan](docs/web-first-migration.md) and will move behind Hono in the next slice.
+- `/scan`: scan configured sources
+- `/digest`: read the latest qualified opportunities
+- `/pause` and `/resume`: change automated monitoring
+- Ordinary questions about the linked workspace, monitoring, or reply drafts
 
-## AI and automation boundaries
+Only private chats with the linked user can access workspace data. Disconnect from Connections to revoke access. Relinking starts new bot history. Telegram is a companion to the web workspace; account creation and business-profile setup happen on the web.
 
-Mastra runs the GTM Copilot as a coordinator with scoped intelligence, monitoring, automation, and drafting specialists. The Hono route resolves the authenticated workspace and injects only the verified runtime user ID into agent tools.
+## Agent layout
 
-Authentication, workspace authorization, billing state, CRUD operations, collection, analysis, and persistence remain deterministic application code. The standalone Node worker schedules monitoring every twenty minutes with bounded concurrency, exponential retries, and database-backed run claims to avoid duplicate work during replays or deployment overlap.
+```text
+apps/api/                    authenticated Node + Hono API
+apps/web/                    Next.js workspace
+apps/worker/                 starts the Eve service through its supported CLI
+packages/agents/
+  agent/instructions.md      GTM coordinator behavior
+  agent/agent.ts             Gemini model and session limits
+  agent/channels/            protected web protocol and native Telegram channel
+  agent/subagents/           intelligence, monitoring, automation, drafting
+  agent/schedules/monitor.ts twenty-minute scan schedule
+  src/                       scoped tools, web relay, monitoring service
+packages/platform/           collectors, analysis, Drizzle, linking services
+packages/auth/               Better Auth
+```
 
-Collectors currently cover Reddit, Hacker News, GitHub, and RSS. All discovery is read-only. Public posting, direct messages, likes, follows, and automatic replies remain disabled.
+Eve owns durable session history and streaming. Hono resolves the web session and workspace, then uses the Eve client to continue a server-owned conversation. Every agent tool checks the caller's current workspace membership. Shell, file, and root-copy agent tools are disabled; each specialist gets only its own application tools.
 
-## Useful commands
+The production scan schedule runs every twenty minutes for onboarded workspaces with monitoring enabled. It uses bounded concurrency, retries, and database claims. It writes opportunities to the queue; users retrieve them through `/digest` or the web. `eve dev` does not run cron automatically. For local scans, use **Scan now**, `/scan`, or the dev schedule endpoint described in [the migration notes](docs/eve-telegram-migration.md).
+
+## Build and production
 
 ```bash
 npm run typecheck
 npm test
 npm run build
-npm run db:generate
-npm run db:migrate
-npm run worker
+npm run start          # Hono API
+npm run start:web      # Next.js (separate process)
+npm run worker         # built Eve service (separate process)
 ```
 
-## Production checklist
+Build before starting the production worker. Set `EVE_INTERNAL_URL` to the private or public Eve origin accessible from Hono. Set `API_INTERNAL_URL` in Next.js to the Hono origin. Preserve exact authenticated web origins in `WEB_ORIGINS` and configure production Better Auth URLs and secrets.
 
-- Use a strong production value for `BETTER_AUTH_SECRET`.
-- Set the same Turso and Gemini credentials in the Hono API and worker environments.
-- Set `BETTER_AUTH_URL` to the canonical public web HTTPS origin.
-- Set `API_INTERNAL_URL` in the Next.js environment to the private or public Hono origin.
-- Add every exact web origin to `WEB_ORIGINS`; do not use `*` with credentialed requests.
-- Apply committed Drizzle migrations before serving production traffic.
-- Deploy the API before the web app so proxied auth and application routes are available.
-- Keep the worker as a separate long-lived Node process.
-- Treat source content as untrusted and keep public posting behind explicit human approval.
+Eve can run as a Node service or deploy independently to Vercel from `packages/agents`. For a Vercel-hosted service use a shared remote Turso database, set the same environment variables, and follow Eve's bundled deployment guide. No hosting deployment is performed by this migration.
+
+For self-hosting, persist `packages/agents/.eve/.workflow-data` and forward both `/eve/` and `/.well-known/workflow/` through the reverse proxy without rewriting their paths. Schedules run when serving a production build with `eve start`, which `npm run worker` invokes. Just-bash provides portable virtual workspace storage; this agent does not expose shell or file tools.
+
+Apply the additive `0006` migration before serving the new Connections page or Copilot. Old Mastra conversation history is not imported into Eve. Application profiles, monitors, opportunities, feedback, and authentication data remain in Turso.

@@ -1,22 +1,20 @@
-import { mastra, mastraStorage } from "@evee/agents";
+import { spawn } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import "@evee/platform/config/env";
 
-async function start() {
-  // This is deliberate deployment-time initialization. The web process uses
-  // disableInit and therefore cannot create or migrate Mastra tables.
-  await mastraStorage.init();
-  await mastra.startWorkers();
-  console.log("Evee worker started on Node: web workspace monitoring runs every 20 minutes.");
-}
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+// Eve owns HTTP delivery, durable runs and production schedules. Keep its
+// supported CLI lifecycle instead of embedding a second scheduler in Hono.
+const development = process.argv.includes("--dev");
+const child = spawn(process.execPath, [
+  path.join(repoRoot, "node_modules/eve/bin/eve.js"),
+  development ? "dev" : "start",
+  "--host", development ? "127.0.0.1" : "0.0.0.0",
+  "--port", process.env.EVE_PORT ?? "4001",
+  ...(development ? ["--no-ui", "--no-default-extensions"] : []),
+], { cwd: path.join(repoRoot, "packages/agents"), env: { ...process.env, EVEE_REPO_ROOT: repoRoot }, stdio: "inherit" });
 
-let keepAlive: ReturnType<typeof setInterval> | undefined;
-
-async function stop(signal: string) {
-  console.log(`Received ${signal}; stopping Evee Mastra worker.`);
-  if (keepAlive) clearInterval(keepAlive);
-  await mastra.stopWorkers();
-}
-
-await start();
-keepAlive = setInterval(() => undefined, 24 * 60 * 60 * 1_000);
-process.once("SIGINT", () => void stop("SIGINT"));
-process.once("SIGTERM", () => void stop("SIGTERM"));
+for (const signal of ["SIGINT", "SIGTERM"] as const) process.once(signal, () => child.kill(signal));
+child.once("error", (error) => { console.error("Eve service failed to start", error); process.exitCode = 1; });
+child.once("exit", (code, signal) => { process.exitCode = code ?? (signal === "SIGINT" || signal === "SIGTERM" ? 0 : 1); });

@@ -20,7 +20,9 @@
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx packages/platform/src/db/migrate.ts"
+    "db:migrate": "tsx packages/platform/src/db/migrate.ts",
+    "telegram:webhook": "tsx scripts/register-telegram-webhook.ts",
+    "agent:info": "npm exec --workspace=@evee/agents -- eve info"
   },
   "devDependencies": {
     "@types/node": "latest",

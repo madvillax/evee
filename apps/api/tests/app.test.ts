@@ -17,3 +17,11 @@ test("workspace routes reject unauthenticated requests", async () => {
   assert.equal(response.status, 401);
   assert.deepEqual(await response.json(), { error: "Sign in to continue." });
 });
+
+
+test("Telegram linking and disconnect require a web session", async () => {
+  for (const endpoint of ["link", "disconnect"]) {
+    const response = await app.request(`/api/telegram/${endpoint}`, { method: "POST" });
+    assert.equal(response.status, 401);
+  }
+});

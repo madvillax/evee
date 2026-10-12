@@ -1,10 +1,5 @@
-import { createStep, createWorkflow } from "@mastra/core/workflows";
 import { claimScheduledRun, listAutomatedUsers, releaseScheduledRun } from "@evee/platform/db/repository";
 import { monitorUser } from "@evee/platform/services/monitor";
-import { z } from "zod";
-
-const monitorSchedule = z.object({});
-const monitorOutput = z.object({ queued: z.number(), completed: z.number(), failed: z.number(), opportunitiesCreated: z.number() });
 
 const sleep = (milliseconds: number) => new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
 
@@ -35,41 +30,26 @@ async function withConcurrency<T, R>(items: T[], concurrency: number, operation:
   return groups.flat();
 }
 
-const monitorAllStep = createStep({
-  id: "monitor-active-workspaces",
-  inputSchema: monitorSchedule,
-  outputSchema: monitorOutput,
-  execute: async () => {
-    const activeUsers = await listAutomatedUsers();
-    const bucket = Math.floor(Date.now() / 1_200_000);
-    let opportunitiesCreated = 0;
-    let completed = 0;
-    let failed = 0;
+export async function monitorAllWorkspaces() {
+  const activeUsers = await listAutomatedUsers();
+  const bucket = Math.floor(Date.now() / 1_200_000);
+  let opportunitiesCreated = 0;
+  let completed = 0;
+  let failed = 0;
 
-    await withConcurrency(activeUsers, 8, async (user) => {
-      const claimed = await claimScheduledRun("monitor", user.id, bucket);
-      if (!claimed) return;
-      try {
-        const result = await retry(() => monitorUser(user.id), 5, 60_000);
-        opportunitiesCreated += result.opportunitiesCreated;
-        completed += 1;
-      } catch (error) {
-        failed += 1;
-        await releaseScheduledRun("monitor", user.id, bucket);
-        console.error("Mastra monitoring workflow failed", { userId: user.id, error });
-      }
-    });
+  await withConcurrency(activeUsers, 8, async (user) => {
+    const claimed = await claimScheduledRun("monitor", user.id, bucket);
+    if (!claimed) return;
+    try {
+      const result = await retry(() => monitorUser(user.id), 5, 60_000);
+      opportunitiesCreated += result.opportunitiesCreated;
+      completed += 1;
+    } catch (error) {
+      failed += 1;
+      await releaseScheduledRun("monitor", user.id, bucket);
+      console.error("Eve monitoring schedule failed", { userId: user.id, error });
+    }
+  });
 
-    return { queued: activeUsers.length, completed, failed, opportunitiesCreated };
-  },
-});
-
-export const monitorAllWorkflow = createWorkflow({
-  id: "schedule-opportunity-monitoring",
-  description: "Checks active web workspaces every twenty minutes and adds qualified opportunities to their review queues.",
-  inputSchema: monitorSchedule,
-  outputSchema: monitorOutput,
-  schedule: { id: "every-twenty-minutes", cron: "*/20 * * * *", inputData: {} },
-})
-  .then(monitorAllStep)
-  .commit();
+  return { queued: activeUsers.length, completed, failed, opportunitiesCreated };
+}

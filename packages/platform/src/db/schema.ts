@@ -110,6 +110,37 @@ export const discordLinkCodes = sqliteTable("discord_link_codes", {
   createdAt: integer("created_at").notNull(),
 }, (table) => [index("discord_link_codes_workspace_idx").on(table.workspaceId)]);
 
+export const telegramConnections = sqliteTable("telegram_connections", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }).unique(),
+  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  authUserId: text("auth_user_id").notNull().references(() => authUsers.id, { onDelete: "cascade" }),
+  telegramUserId: text("telegram_user_id").notNull().unique(),
+  telegramChatId: text("telegram_chat_id").notNull(),
+  telegramUsername: text("telegram_username"),
+  linkedAt: integer("linked_at").notNull(),
+});
+
+export const telegramLinkCodes = sqliteTable("telegram_link_codes", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  authUserId: text("auth_user_id").notNull().references(() => authUsers.id, { onDelete: "cascade" }),
+  codeHash: text("code_hash").notNull().unique(),
+  expiresAt: integer("expires_at").notNull(),
+  consumedAt: integer("consumed_at"),
+  createdAt: integer("created_at").notNull(),
+});
+
+// Only the authenticated API stores and selects durable web conversation IDs.
+export const copilotSessions = sqliteTable("copilot_sessions", {
+  workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  authUserId: text("auth_user_id").notNull().references(() => authUsers.id, { onDelete: "cascade" }),
+  sessionId: text("session_id").unique(),
+  streamIndex: integer("stream_index").notNull().default(0),
+  busyUntil: integer("busy_until").notNull().default(0),
+  createdAt: integer("created_at").notNull(),
+}, (table) => [primaryKey({ columns: [table.workspaceId, table.authUserId] })]);
+
 export const integrations = sqliteTable("integrations", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),

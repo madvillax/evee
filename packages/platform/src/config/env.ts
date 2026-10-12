@@ -4,9 +4,8 @@ import { z } from "zod";
 
 const runtimeCwd = process.cwd();
 const runtimeParent = path.basename(path.dirname(runtimeCwd));
-if (runtimeParent === "apps" || runtimeParent === "packages") {
-  dotenv.config({ path: path.resolve(runtimeCwd, "../../.env"), override: false, quiet: true });
-}
+const envRoot = runtimeParent === "apps" || runtimeParent === "packages" ? path.resolve(runtimeCwd, "../..") : runtimeCwd;
+dotenv.config({ path: path.join(envRoot, ".env"), override: false, quiet: true });
 
 const optionalString = z.preprocess(
   (value) => (typeof value === "string" ? value.trim() || undefined : value),
