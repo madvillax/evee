@@ -1,6 +1,6 @@
 # Historical web-first migration
 
-This document records the previous migration. The current agent and channel architecture is documented in [Eve and Telegram migration](eve-telegram-migration.md).
+This document records the previous migration. The current agent and channel architecture is documented in [Eve web runtime](eve-runtime.md).
 
 # Web-first migration
 

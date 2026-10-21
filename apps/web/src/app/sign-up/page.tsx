@@ -4,5 +4,5 @@ import { AuthLayout } from "@/components/auth-layout";
 export const metadata = { title: "Create workspace" };
 
 export default function SignUpPage() {
-  return <AuthLayout title="Create your workspace" subtitle="Start with a business profile, then connect the channels your team already uses."><AuthForm mode="sign-up" /></AuthLayout>;
+  return <AuthLayout title="Create your workspace" subtitle="Start with a business profile, then choose the public sources you want to monitor."><AuthForm mode="sign-up" /></AuthLayout>;
 }

@@ -110,6 +110,8 @@ export const discordLinkCodes = sqliteTable("discord_link_codes", {
   createdAt: integer("created_at").notNull(),
 }, (table) => [index("discord_link_codes_workspace_idx").on(table.workspaceId)]);
 
+// Archived linkage data only; no active routes or services use these tables.
+// Retain their definitions so unrelated schema generation does not drop data.
 export const telegramConnections = sqliteTable("telegram_connections", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }).unique(),

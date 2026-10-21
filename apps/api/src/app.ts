@@ -11,7 +11,6 @@ import {
 import { feedbackValueSchema } from "@evee/platform/domain/types";
 import { recordOpportunityFeedback } from "@evee/platform/services/feedback";
 import { monitorUser } from "@evee/platform/services/monitor";
-import { createTelegramLink, disconnectTelegram, getTelegramConnection, telegramConfigured } from "@evee/platform/services/telegram";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createMiddleware } from "hono/factory";
@@ -90,27 +89,6 @@ workspaceApi.get("/workspace", (c) => {
   const session = c.get("session");
   const { workspace, runtimeUser, role } = c.get("workspace");
   return c.json({ session, workspace, runtimeUser, role });
-});
-
-workspaceApi.get("/telegram", async (c) => {
-  const { workspace, role } = c.get("workspace");
-  const connection = await getTelegramConnection(workspace.id);
-  return c.json({ configured: telegramConfigured(), canManage: role === "owner" || role === "admin", connected: Boolean(connection), username: connection?.telegramUsername ?? null });
-});
-
-workspaceApi.post("/telegram/link", async (c) => {
-  const { workspace, role } = c.get("workspace");
-  if (role !== "owner" && role !== "admin") throw new HTTPException(403, { message: "An owner or admin must link Telegram." });
-  if (!telegramConfigured()) throw new HTTPException(503, { message: "Telegram has not been configured on the server." });
-  c.header("Cache-Control", "no-store");
-  return c.json(await createTelegramLink(workspace.id, c.get("session").user.id));
-});
-
-workspaceApi.post("/telegram/disconnect", async (c) => {
-  const { workspace, role } = c.get("workspace");
-  if (role !== "owner" && role !== "admin") throw new HTTPException(403, { message: "An owner or admin must disconnect Telegram." });
-  await disconnectTelegram(workspace.id);
-  return c.json({ ok: true });
 });
 
 workspaceApi.get("/opportunities", async (c) => {

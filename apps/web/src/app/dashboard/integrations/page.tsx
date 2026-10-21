@@ -1,7 +1,5 @@
 import { ArrowRight, Browser, GithubLogo, RedditLogo, Robot, Rss, Target } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
-import { getTelegramConnection, telegramConfigured } from "@evee/platform/services/telegram";
-import { TelegramConnection } from "@/components/telegram-connection";
 import { PageHeader } from "@/components/page-header";
 import { requireWorkspace } from "@/lib/session";
 
@@ -15,17 +13,14 @@ const sources = [
 export const metadata = { title: "Connections" };
 
 export default async function ConnectionsPage() {
-  const { workspace, role } = await requireWorkspace();
-  const connection = await getTelegramConnection(workspace.id);
+  await requireWorkspace();
 
   return (
     <div className="grid gap-5">
       <PageHeader
         title="Connections"
-        description="Manage signal sources and your linked Telegram bot."
+        description="Manage signal sources for your web workspace."
       />
-
-      <TelegramConnection configured={telegramConfigured()} connected={Boolean(connection)} username={connection?.telegramUsername ?? null} canManage={role === "owner" || role === "admin"} />
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
         <section className="overflow-hidden rounded-[10px] border bg-[var(--surface)]">
